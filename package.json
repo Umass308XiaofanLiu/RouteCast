@@ -11,7 +11,8 @@
     "test": "node --test \"tests/unit/*.test.mjs\"",
     "test:e2e": "node --test --test-concurrency=1 \"tests/e2e/*.test.mjs\"",
     "record:snapshots": "node scripts/record-snapshots.mjs",
-    "screenshots": "node scripts/screenshot.mjs"
+    "screenshots": "node scripts/screenshot.mjs",
+    "deploy:cloudflare": "npm run build && npx --yes wrangler@4.45.0 pages deploy dist --project-name glarepilot --branch main"
   },
   "dependencies": {
     "leaflet": "1.9.4",

@@ -1,7 +1,7 @@
 {
   "project": "GlarePilot",
   "event": "Hackachusetts 2026 (deadline 2026-10-24 20:00 America/New_York, submit on SundAI)",
-  "updated": "2026-10-24T17:10:00-04:00",
+  "updated": "2026-10-24T17:16:00-04:00",
   "repo": "https://github.com/Umass308XiaofanLiu/glarepilot",
   "orchestration": {
     "main": "claude-opus-5.5 / xhigh, persistent atch session (unchanged)",
@@ -30,11 +30,11 @@
     "core_engine": "done",
     "ui": "done (polished, responsive, reviewed)",
     "unit_tests": "29/29 pass (npm test)",
-    "e2e": "9/9 pass (npm run test:e2e, headless Chrome, recorded-response replay)",
+    "e2e": "9/9 pass (npm run test:e2e)",
     "independent_review": "done by Kiro subagent: 4 major + 13 minor findings; majors and most minors fixed with regression tests",
     "docs_submission_pack": "done: README.md, docs/SUBMISSION.md, docs/DEMO_SCRIPT.md, THIRD_PARTY_NOTICES.md",
-    "demo_video": "docs/media/glarepilot-demo.mp4 recorded from live site (needs public upload by human)",
-    "deploy": "GitHub Pages live https://umass308xiaofanliu.github.io/glarepilot/ ; Cloudflare not deployed (no Cloudflare auth in environment)"
+    "demo_video": "docs/media/glarepilot-demo.mp4, 165.7 s, 1440x900 H.264, captured 2026-10-24 ~5:09 PM EDT from the live reviewed build with live data; needs public upload by the human",
+    "deploy": "GitHub Pages live https://umass308xiaofanliu.github.io/glarepilot/ (gh-pages branch, served bundle verified equal to local build). Cloudflare not deployed: no Cloudflare credentials in environment; npm run deploy:cloudflare ready after login."
   },
   "human_only": [
     "SundAI login, team members, track selection (recommended Civic action V3) and final Submit before 8 PM ET",

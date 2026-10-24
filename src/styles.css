@@ -350,7 +350,7 @@ body.motion-off .cond-badge *, body.motion-off .cond-badge { animation: none !im
 @media (max-width: 640px) {
   .chase { height: 66vh; min-height: 380px; }
   .chase-top { flex-direction: column; align-items: flex-start; }
-  .chase-state { top: 74px; }
+  .chase-state { top: 104px; }
   .chase-ahead { right: 10px; bottom: 100px; font-size: 11.5px; }
   .chase-controls { right: 10px; }
   .chase-controls .chip-btn { padding: 6px 9px; font-size: 12px; }

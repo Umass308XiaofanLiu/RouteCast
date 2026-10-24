@@ -3,7 +3,7 @@
 import { findWindows } from './trip.js';
 
 // Draw priority (first wins when icons would overlap).
-export const COND_ORDER = ['glare', 'snow', 'rain', 'fog', 'wind', 'jam', 'sun-aligned', 'night'];
+export const COND_ORDER = ['jam', 'glare', 'snow', 'rain', 'fog', 'wind', 'sun-aligned', 'night'];
 
 export const COND_LABEL = {
   glare: 'Strong low sun ahead',

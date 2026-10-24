@@ -38,4 +38,4 @@
 
 Live numbers come from the app's UI at recording time; re-running the script uses that moment's forecast, so they can change. If the live request fails, the script now stops instead of narrating "retrieved live" over a snapshot.
 
-Earlier captions-only version (no audio, 128.8 s, recorded 6:51 PM before the latest small UI fixes): `/tmp/gp_release/glarepilot-demo-captions-only.mp4`.
+Earlier captions-only version (no audio, 128.8 s, recorded 6:51 PM before the latest small UI fixes): `glarepilot-demo-captions-only.mp4` in the [v1.0-hackachusetts release](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts).

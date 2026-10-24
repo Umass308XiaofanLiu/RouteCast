@@ -90,3 +90,39 @@ test('denied permission shows a calm message and playback still works', async ()
   assert.deepEqual(errors, []);
   await page.close();
 });
+
+test('accuracy is shown; an imprecise fix is not snapped to the route', async () => {
+  const { page, errors } = await openDemo(true);
+  const before = await scrubValue(page);
+  await page.setGeolocation({ latitude: 42.3735, longitude: -72.5195, accuracy: 5000 });
+  await page.click('#gps-start');
+  await page.waitForFunction(() => /too imprecise/.test(document.getElementById('gps-status').textContent));
+  assert.match(await text(page, '#gps-status'), /accuracy ±3\.1 mi/);
+  assert.equal(await scrubValue(page), before, 'position unchanged');
+  await page.setGeolocation({ latitude: 42.3735, longitude: -72.5195, accuracy: 25 });
+  await page.waitForFunction(() => /Following your location/.test(document.getElementById('gps-status').textContent), { timeout: 20000 });
+  assert.match(await text(page, '#gps-status'), /accuracy ±\d+ ft/);
+  assert.equal(await scrubValue(page), '0');
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('exploring the plan pauses GPS following; Return to my location resumes it', async () => {
+  const { page, errors } = await openDemo(true);
+  await page.setGeolocation({ latitude: 42.3735, longitude: -72.5195, accuracy: 30 });
+  await page.click('#gps-start');
+  await page.waitForFunction(() => /Following your location/.test(document.getElementById('gps-status').textContent));
+  await page.focus('#scrub');
+  for (let k = 0; k < 25; k++) await page.keyboard.press('ArrowRight');
+  assert.notEqual(await scrubValue(page), '0');
+  assert.match(await text(page, '#gps-status'), /paused while you explore the plan/);
+  assert.equal(await page.$eval('#gps-return', (e) => e.hidden), false);
+  assert.equal(await page.$eval('[data-hud="gps"]', (e) => e.hidden), true);
+  await page.$eval('#gps-return', (e) => e.scrollIntoView({ block: 'center' }));
+  await page.click('#gps-return');
+  assert.equal(await scrubValue(page), '0', 'back at the GPS-matched sample');
+  assert.match(await text(page, '#gps-status'), FOLLOW);
+  assert.equal(await page.$eval('#gps-return', (e) => e.hidden), true);
+  assert.deepEqual(errors, []);
+  await page.close();
+});

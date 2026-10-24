@@ -218,4 +218,5 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 - **AWS Terrain Tiles** (elevation, fetched at runtime, not bundled): Terrain: AWS Terrain Tiles (Mapzen; SRTM, USGS 3DEP and others), https://registry.opendata.aws/terrain-tiles/ . Attribution is shown in the map's attribution control.
 - **OpenStreetMap** raster tiles for the terrain view basemap: © OpenStreetMap contributors, https://www.openstreetmap.org/copyright .
+- **OpenFreeMap** vector tiles (https://tiles.openfreemap.org/planet, OpenMapTiles schema, `building` layer, zoom 14+) for the terrain view's extruded 3D buildings, fetched at runtime, not bundled. Required attribution per https://openfreemap.org/ (checked 2026-10-24): "OpenFreeMap © OpenMapTiles Data from OpenStreetMap" — shown in the map's attribution control (collapsed behind the (i) button on cards narrower than 1200 px). Building data © OpenStreetMap contributors (ODbL 1.0); schema © OpenMapTiles.
 

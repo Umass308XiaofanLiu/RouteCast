@@ -17,6 +17,7 @@ const LEVELS = [
 ];
 const CLEAR_COLOR = '#2f9e44';
 const DEM_ATTR = 'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> (Mapzen; SRTM, USGS 3DEP and others)';
+const OFM_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">© OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 const OSM_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 function hasWebGL() {
@@ -61,8 +62,8 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     <div class="chase-top">
       <span class="chase-tag">Simulated playback of the planned route · real terrain (AWS Terrain Tiles) · not GPS</span>
       <span class="chase-where" data-hud="where"></span>
+      <span class="terrain-note" data-hud="note">Loads online map + elevation tiles; scenario weather stays hand-set · hillshade light follows the sun azimuth (visual only, not used for glare)</span>
     </div>
-    <div class="terrain-note" data-hud="note">Loads online map + elevation tiles; scenario weather stays hand-set · hillshade light follows the sun azimuth (visual only, not used for glare)</div>
     <div class="chase-ahead terrain-ahead" data-hud="ahead"></div>
     <div class="chase-controls" role="group" aria-label="3D terrain controls">
       <button type="button" class="chip-btn" data-act="play" aria-pressed="false">Play</button>
@@ -82,11 +83,23 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
       version: 8,
       sources: {
         osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: OSM_ATTR },
+        // 3D buildings: OpenFreeMap vector tiles (OpenMapTiles schema, 'building' layer, z14 max)
+        ofm: { type: 'vector', url: 'https://tiles.openfreemap.org/planet', attribution: OFM_ATTR },
         dem: { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256, maxzoom: 15, attribution: DEM_ATTR },
       },
       layers: [
         { id: 'osm', type: 'raster', source: 'osm' },
         { id: 'hillshade', type: 'hillshade', source: 'dem', paint: { 'hillshade-exaggeration': 0.45, 'hillshade-illumination-anchor': 'map', 'hillshade-illumination-direction': 315 } },
+        {
+          id: 'buildings', type: 'fill-extrusion', source: 'ofm', 'source-layer': 'building', minzoom: 14,
+          filter: ['!=', ['get', 'hide_3d'], true],
+          paint: {
+            'fill-extrusion-color': '#d4d7dc',
+            'fill-extrusion-opacity': 0.8,
+            'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 6],
+            'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+          },
+        },
       ],
       sky: {},
     },
@@ -117,6 +130,9 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     map.once('load', () => finish(null));
   });
   map.on('error', () => {}); // swallow post-load tile errors
+  // When the card is not very wide the expanded (now three-provider) attribution would cover the playback controls: start it
+  // collapsed behind MapLibre's (i) button, which still shows the full credits on tap.
+  if (root.clientWidth < 1200) root.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
   map.setTerrain({ source: 'dem', exaggeration: 1.4 });
   map.addSource('route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 9, 'line-opacity': 0.9 } });
@@ -125,7 +141,7 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
   const carEl = document.createElement('div');
   carEl.className = 'terrain-car';
   carEl.setAttribute('aria-label', 'Simulated playback position');
-  const car = new maplibregl.Marker({ element: carEl, rotationAlignment: 'map', pitchAlignment: 'map' }).setLngLat([-72.52, 42.37]).addTo(map);
+  const car = new maplibregl.Marker({ element: carEl, rotationAlignment: 'map', pitchAlignment: 'viewport' }).setLngLat([-72.52, 42.37]).addTo(map);
 
   let model = null;
   let ev = null;

@@ -8,7 +8,7 @@ import { buildAdvice } from './lib/advice.js';
 import { forecastHorizonEnd } from './lib/providers.js';
 import { parseLocalInput, toLocalInput, zonedParts, zonedWallTimeToUtc, formatClock, formatDuration, tzAbbrev } from './lib/time.js';
 import { describeCode } from './lib/weather.js';
-import { compass } from './lib/geo.js';
+import { compass, nearestSample } from './lib/geo.js';
 import { makeFormatter } from './lib/units.js';
 import { PRESETS, PLACES } from './lib/presets.js';
 import { createCombobox } from './ui/combobox.js';
@@ -654,6 +654,82 @@ function setMotion(on) {
 }
 $('motion').addEventListener('click', () => setMotion(document.body.classList.contains('motion-off')));
 setMotion(!reducedMotion());
+
+// ---------- optional "follow my location" (GPS) ----------
+// Off by default; starts only on an explicit click. Fixes are snapped to the nearest planned-route
+// sample in memory and then discarded: coordinates are never stored, logged or sent anywhere.
+const GPS_OFF_ROUTE_M = 2000;
+const GPS_FOLLOW_LABEL = "Following your location (GPS) — conditions are still the PLANNED forecast for this trip's timeline";
+const GPS_CHASE_TAG = 'Simulated playback of the planned route · not GPS';
+let gpsWatch = null;
+
+function gpsStatus(msg, warn = false) {
+  const el = $('gps-status');
+  el.textContent = msg;
+  el.classList.toggle('warn', warn);
+}
+function gpsFollowing(on) {
+  const hud = document.querySelector('[data-hud="gps"]');
+  hud.hidden = !on;
+  hud.textContent = on ? GPS_FOLLOW_LABEL : '';
+  document.querySelector('.chase-tag').textContent = on ? 'Snapped to your GPS position on the planned route' : GPS_CHASE_TAG;
+}
+function gpsStop(msg = '') {
+  if (gpsWatch != null) navigator.geolocation.clearWatch(gpsWatch);
+  gpsWatch = null;
+  $('gps-start').hidden = false;
+  $('gps-stop').hidden = true;
+  gpsFollowing(false);
+  gpsStatus(msg, Boolean(msg));
+}
+function gpsOnFix(pos) {
+  const { model, ev } = state;
+  if (!model || !ev) {
+    gpsFollowing(false);
+    gpsStatus('Location received — plan or open a trip to follow it on the route.');
+    return;
+  }
+  const hit = nearestSample(model.samples, pos.coords.latitude, pos.coords.longitude);
+  if (!hit) return;
+  if (hit.distM > GPS_OFF_ROUTE_M) {
+    gpsFollowing(false);
+    gpsStatus(`You are off this planned route (${(hit.distM / 1609.344).toFixed(hit.distM < 160934 ? 1 : 0)} mi away) — playback position unchanged`, true);
+    return;
+  }
+  gpsFollowing(true);
+  gpsStatus(GPS_FOLLOW_LABEL);
+  if (hit.index !== state.sel) select(hit.index);
+}
+function gpsOnError(err) {
+  const msg =
+    err.code === 1
+      ? 'Location permission denied — the planned-route playback still works'
+      : err.code === 3
+        ? 'Location timed out — the planned-route playback still works'
+        : 'Location unavailable — the planned-route playback still works';
+  if (err.code === 1) gpsStop(msg);
+  else {
+    // Keep watching after a transient failure; the browser may deliver a fix later.
+    gpsFollowing(false);
+    gpsStatus(msg, true);
+  }
+}
+$('gps-start').addEventListener('click', () => {
+  if (!window.isSecureContext || !('geolocation' in navigator)) {
+    gpsStatus('Location needs HTTPS and browser support', true);
+    return;
+  }
+  if (gpsWatch != null) return;
+  gpsStatus('Waiting for your location…');
+  $('gps-start').hidden = true;
+  $('gps-stop').hidden = false;
+  try {
+    gpsWatch = navigator.geolocation.watchPosition(gpsOnFix, gpsOnError, { enableHighAccuracy: true, maximumAge: 10_000, timeout: 15_000 });
+  } catch {
+    gpsStop('Location needs HTTPS and browser support');
+  }
+});
+$('gps-stop').addEventListener('click', () => gpsStop());
 
 // ---------- presets & snapshots ----------
 function renderPresets() {

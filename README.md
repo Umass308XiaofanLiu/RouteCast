@@ -89,6 +89,10 @@ Instead, the "Traffic delay assumption" control lets you add +15 min … +2 h of
 - Mouse wheel, horizontal swipe or arrow keys preview ahead or behind without changing the playback position; **Return to playback position** goes back. Camera distances: Close / Near / Far / Wide. **Play/Pause** advances the playback.
 - Both views share one selected time with the timeline. GPS / live location is not implemented.
 
+## Optional: follow my location
+
+Below the map there is a **Use my location (optional)** button. It is off by default and the browser is asked for location only after you click it (HTTPS or localhost required). Each fix is snapped to the nearest sample of the planned route: within about 2 km the 2D map and 3D chase preview jump to that point and show "Following your location (GPS) — conditions are still the PLANNED forecast for this trip's timeline"; farther away you see "You are off this planned route (X mi away)" and the playback position does not move. Denied or unavailable location just shows a message; the planned-route playback keeps working. **Stop** ends the watch. Coordinates stay in the open tab only: they are never stored, logged or sent anywhere (no network request, no localStorage). The forecast is not re-fetched for your actual current time, and desktop location can be off by hundreds of meters or more.
+
 ## Data you see and where it comes from
 
 | What you see | Kind | Source |

@@ -139,3 +139,22 @@ export function compass(deg) {
   const names = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
   return names[Math.round(normalizeDeg(deg) / 22.5) % 16];
 }
+
+/**
+ * Nearest route sample to a point (e.g. a GPS fix). Returns { index, distM } or null when there
+ * are no samples. Pure: the coordinates are only compared, never stored.
+ */
+export function nearestSample(samples, lat, lon) {
+  if (!samples?.length || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const k = Math.cos((lat * Math.PI) / 180);
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < samples.length; i += 1) {
+    const d = (samples[i].lat - lat) ** 2 + ((samples[i].lon - lon) * k) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return { index: best, distM: haversine(lat, lon, samples[best].lat, samples[best].lon) };
+}

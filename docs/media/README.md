@@ -2,7 +2,7 @@
 
 | File | What it is |
 | --- | --- |
-| `/tmp/gp_release/glarepilot-demo.mp4` (not in the repo) | Narrated screen recording, 2:50 (169.90 s), 1440×900 H.264 30 fps + AAC stereo 48 kHz (128 kbps target), 15,875,943 bytes. The main agent publishes it as a GitHub release asset; MP4s are not committed. |
+| `the GitHub release asset (https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts)` (not in the repo) | Narrated screen recording, 2:50 (169.90 s), 1440×900 H.264 30 fps + AAC stereo 48 kHz (128 kbps target), 15,875,943 bytes. The main agent publishes it as a GitHub release asset; MP4s are not committed. |
 | `glarepilot-demo.en.srt` | English captions, 22 cues — the same text that is burned into the video |
 | `TRANSCRIPT.md` | Plain narration transcript with timestamps |
 | `glarepilot-demo-poster.png` | Poster frame (1440×900): live Amherst → Chicago plan, "Live forecast · Valhalla route" badge, map with condition icons |

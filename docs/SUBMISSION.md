@@ -48,7 +48,7 @@ Why **Energy & Climate Tech** ("C1 Resilient communities in a changing climate")
 | Recorded snapshot (offline fallback) | https://umass308xiaofanliu.github.io/glarepilot/?snapshot=chicago-sunset |
 | Manual demo scenario (synthetic) | https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift |
 | Manual demo scenario in 3D chase preview | https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d |
-| Demo video (< 3 min, public) | **TODO (human)** — upload [docs/media/glarepilot-demo.mp4](media/glarepilot-demo.mp4) and paste the public YouTube/Vimeo URL |
+| Demo video (< 3 min, public) | **TODO (human)** — upload the release video [glarepilot-demo.mp4](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts) and paste the public YouTube/Vimeo URL |
 
 ## Testing instructions for judges
 
@@ -111,7 +111,7 @@ Also not used: Kiro IDE and Kiro Web. The `chat.enableWorkflows` and `chat.enabl
 | Built with Kiro | `.kiro/` in repo; this write-up | Done |
 | Identify one track | Recommendation above (Civic Action, V3) | Human action needed (select on form) |
 | Text description of features/functionality | "Full description" above | Done (paste into form) |
-| Demo video < 3 min, public on YouTube/Vimeo/Facebook Video/Youku, shows the project working, no unlicensed music/trademarks | Captioned recording [docs/media/glarepilot-demo.mp4](media/glarepilot-demo.mp4) (H.264, no audio/music), script [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md) | Human action needed (upload publicly, paste link) |
+| Demo video < 3 min, public on YouTube/Vimeo/Facebook Video/Youku, shows the project working, no unlicensed music/trademarks | Narrated + captioned recording, the release video [glarepilot-demo.mp4](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts) (2:50, H.264 + AAC synthetic narration, no music), script [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md) | Human action needed (upload publicly, paste link) |
 | Public GitHub repo with all source, assets and instructions | https://github.com/Umass308XiaofanLiu/glarepilot, [README](../README.md) | Done |
 | `/.kiro` directory at repo root, not gitignored | `.kiro/steering/`, `.kiro/specs/`; `.gitignore` lists only `node_modules/`, `dist/`, `.env*`, `*.log`, `.DS_Store` | Done |
 | Write-up on how Kiro was used | "How Kiro was used" above | Done (paste into form) |
@@ -124,7 +124,7 @@ Also not used: Kiro IDE and Kiro Web. The `chat.enableWorkflows` and `chat.enabl
 1. Log in to SundAI and open the Hackachusetts submission form.
 2. Add team members (max 4) — also fill the Team section in the README.
 3. Select the track (recommended: Civic Action, V3; the human decides).
-4. Upload the demo video as **public** to YouTube or Vimeo — [docs/media/glarepilot-demo.mp4](media/glarepilot-demo.mp4) or your own narrated recording following [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md) — and check it plays while logged out.
+4. Upload the demo video as **public** to YouTube or Vimeo — the release video [glarepilot-demo.mp4](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts) or your own narrated recording following [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md) — and check it plays while logged out.
 5. Paste the repo, live demo and video links, the description and the Kiro write-up into the form; add the video link to the README.
 6. Press **Submit** before 8:00 PM ET and confirm the submission appears on SundAI.
 7. Optional: choose a project license and add a `LICENSE` file.

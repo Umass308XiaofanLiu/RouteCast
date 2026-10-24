@@ -1,6 +1,6 @@
 # YouTube upload kit — GlarePilot demo
 
-File to upload: `/tmp/gp_release/glarepilot-demo.mp4` (or the GitHub release asset the main agent publishes from it).
+File to upload: `glarepilot-demo.mp4` from the GitHub release https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts.
 Subtitles: `docs/media/glarepilot-demo.en.srt` (English). Thumbnail (optional): `docs/media/glarepilot-demo-poster.png`.
 
 ## Title (≤ 100 characters)

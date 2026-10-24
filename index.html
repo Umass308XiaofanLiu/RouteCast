@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GlarePilot — Drive-time weather & sun-glare companion</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="logo">🌅</span>
+          <div>
+            <h1>GlarePilot</h1>
+            <p class="tagline">Know the weather &amp; sun glare for <em>where</em> and <em>when</em> you'll actually be.</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="controls">
+          <form id="trip-form">
+            <label>Origin
+              <select id="origin"></select>
+            </label>
+            <label>Destination
+              <select id="destination"></select>
+            </label>
+            <label>Departure (local)
+              <input type="datetime-local" id="departure" />
+            </label>
+            <button type="submit" id="go">Plan drive</button>
+          </form>
+          <p class="data-note" id="data-note"></p>
+          <div id="summary" class="summary"></div>
+        </section>
+
+        <section class="map-wrap">
+          <div id="map"></div>
+        </section>
+
+        <section class="timeline">
+          <h2>Along the way</h2>
+          <div id="waypoints" class="waypoints"></div>
+        </section>
+
+        <section class="briefing">
+          <h2>Driving briefing</h2>
+          <div id="briefing" class="briefing-body"></div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Forecast: Open-Meteo · Routing: OSRM demo · Sun: SunCalc · Observations vs. forecasts labeled.</span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -45,7 +45,7 @@ export function optimizeDeparture(model, departureUtc, opts = {}, { nowMs = Date
     const dep = departureUtc + off * 60000;
     if (off !== 0 && dep < nowMs - 5 * 60000) return { offsetMin: off, departureUtc: dep, available: false, reason: 'in the past' };
     const ev = off === 0 ? base : evaluateTrip(model, dep, opts);
-    const missingShare = ev.totals.missingMin / Math.max(1, ev.driveSec / 60);
+    const missingShare = ev.totals.missingMin / Math.max(1, ev.movingSec / 60);
     if (off !== 0 && missingShare > 0.05) return { offsetMin: off, departureUtc: dep, available: false, reason: 'beyond forecast' };
     return {
       offsetMin: off,

@@ -8,7 +8,8 @@ export const MAX_TRIP_HOURS = 30;
 
 /**
  * Fetch route and forecasts for a trip. `places` is the label dataset.
- * Forecasts cover departure − 3.5 h … arrival + 3.5 h so the optimizer can shift departures.
+ * Forecasts cover departure − 3.5 h … arrival + 5.5 h so the optimizer can shift departures
+ * and a delay scenario of up to 2 h stays inside the fetched window.
  */
 export async function buildTripModel({ origin, dest, departureUtc, breakPlan = BREAK_PLANS.none, places, fetchImpl = fetch, signal, nowMs = Date.now(), onStage = () => {} }) {
   onStage('route');
@@ -24,7 +25,7 @@ export async function buildTripModel({ origin, dest, departureUtc, breakPlan = B
   const forecasts = await fetchForecasts(
     pointIdx.map((i) => samples[i]),
     departureUtc - 3.5 * 3600e3,
-    departureUtc + (elapsed + 3.5 * 3600) * 1000,
+    departureUtc + (elapsed + 5.5 * 3600) * 1000,
     { fetchImpl, signal, nowMs }
   );
   return {

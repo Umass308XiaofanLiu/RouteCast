@@ -16,6 +16,10 @@ import { createMap, legendHtml } from './ui/mapview.js';
 import { createTimeline } from './ui/timeline.js';
 import { compassSvg, compassText } from './ui/compass.js';
 import { ICONS, GLARE_LABEL, PHASE_LABEL, WEATHER_LABEL, weatherCategory } from './ui/palette.js';
+import { SCENARIOS, buildScenarioModel } from './lib/scenarios.js';
+import { createConditionLayer, condLegendHtml, COND_SVG, COND_RING } from './ui/condlayer.js';
+import { createChase } from './ui/chase3d.js';
+import { rowConditions } from './lib/conditions.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -32,7 +36,12 @@ const state = {
   glareWindows: [],
   inflight: null,
   lastRequest: null,
+  mode: 'real',
+  view: '2d',
+  scenario: null,
+  baseline: null,
 };
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let fmt = makeFormatter('us');
 
 // ---------- form ----------
@@ -114,6 +123,8 @@ async function readForm() {
 function show(view) {
   for (const id of ['empty', 'loading', 'error', 'result']) $(id).hidden = id !== view;
   $('advice-card').hidden = view !== 'result';
+  if (view !== 'result') chase?.show(false);
+  else if (state.view === '3d') chase?.show(true);
   document.body.classList.toggle('has-result', view === 'result');
 }
 function setBusy(busy) {
@@ -184,19 +195,29 @@ function focusResults() {
   if (window.matchMedia('(max-width: 1100px)').matches) $('kpis').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function tripOpts() {
+  if (state.model?.source.kind === 'synthetic') {
+    const scn = SCENARIOS.find((x) => x.id === state.model.source.scenario);
+    return { breakPlan: BREAK_PLANS.none, vehicle: scn.vehicle, delay: scn.delay, breaks: 'none' };
+  }
+  return { breakPlan: BREAK_PLANS[$('breaks').value], vehicle: $('vehicle').value, delay: { minutes: Number($('delay-min').value), where: $('delay-where').value }, breaks: $('breaks').value };
+}
+
 function evaluate(departureUtc, { fit = false } = {}) {
   const m = state.model;
-  const vehicle = $('vehicle').value;
-  const opts = { breakPlan: BREAK_PLANS[$('breaks').value], vehicle };
-  const nowMs = m.source.kind === 'snapshot' ? m.source.capturedAt : Date.now();
+  const opts = tripOpts();
+  const vehicle = opts.vehicle;
+  const nowMs = m.source.kind === 'synthetic' ? state.scenarioNow : m.source.kind === 'snapshot' ? m.source.capturedAt : Date.now();
   state.opt = optimizeDeparture(m, departureUtc, opts, { nowMs });
   state.ev = state.opt.base;
+  state.baseline = opts.delay?.minutes ? evaluateTrip(m, departureUtc, { ...opts, delay: null }) : null;
   state.glareWindows = state.ev.windows.glare.map((w) => describeGlareWindow(m, state.ev, w)).filter((d) => d.peakSeverity >= 2 || d.minutes >= 4);
   state.recs = buildAdvice(m, state.ev, { vehicle, optimizer: state.opt, unitsFmt: fmt });
   state.activeRec = null;
   // Start the cursor at the most important glare moment, else at departure.
+  const firstRec = state.recs.find((r) => r.focus != null);
   const top = state.glareWindows.slice().sort((a, b) => b.peakExpected - a.peakExpected || b.peakSeverity - a.peakSeverity)[0];
-  state.sel = top ? top.peak : 0;
+  state.sel = firstRec ? firstRec.focus : top ? top.peak : 0;
   renderAll({ fit });
   const ev = state.ev;
   announce(`Drive planned: ${formatDuration(ev.driveSec)} of driving, arriving ${formatClock(ev.arrivalUtc, m.destTz)}. ${state.recs.length} notes.`);
@@ -205,16 +226,32 @@ function evaluate(departureUtc, { fit = false } = {}) {
 // ---------- rendering ----------
 let mapView = null;
 let timeline = null;
+let condLayer = null;
+let chase = null;
 
 function renderAll({ fit = false } = {}) {
   const { model, ev } = state;
   mapView ??= createMap($('map'), { onPick: select });
   timeline ??= createTimeline($('timeline'), { onPick: select });
+  condLayer ??= createConditionLayer(mapView.map, { onPick: (i, range) => select(i, { range }) });
+  chase ??= createChase($('chase'), {
+    onAdvance: (i) => select(i, { fromChase: true }),
+    onPreview: previewAt,
+    getFmt: () => fmt,
+    reducedMotion,
+  });
   renderProvenance();
   renderKpis();
+  renderDelayCard();
   $('legend').innerHTML = legendHtml(state.layer);
   mapView.render(model, ev, state.layer, state.glareWindows, { fit });
-  requestAnimationFrame(() => mapView.invalidate());
+  mapView.setJam(model, ev.windows.jam);
+  requestAnimationFrame(() => {
+    mapView.invalidate();
+    condLayer.render(model, ev);
+    $('cond-legend').innerHTML = condLegendHtml(condLayer.presentCategories());
+  });
+  chase.setTrip(model, ev);
   renderAdvice();
   renderOptimizer();
   renderTable();
@@ -223,16 +260,45 @@ function renderAll({ fit = false } = {}) {
   select(state.sel);
 }
 
+function provHtml() {
+  const m = state.model;
+  const ev = state.ev;
+  const ny = (t) => `${formatClock(t, 'America/New_York')}, ${new Date(t).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' })}`;
+  const dly = ev.delay?.minutes ? ` plus your assumed ${formatDuration(ev.delay.extraSec)} delay ${ev.delay.label}` : '';
+  const timing = `Each point uses conditions at its <strong>projected arrival time</strong>: departure ${esc(formatClock(ev.departureUtc, m.originTz))} + routed drive time${$('breaks').value !== 'none' && m.source.kind !== 'synthetic' ? ' + breaks' : ''}${esc(dly)}.`;
+  const what = `<details><summary>What is forecast, computed, estimated or assumed?</summary><ul>
+      <li><strong>Weather</strong>: ${m.source.kind === 'synthetic' ? 'hand-set synthetic values (not a forecast)' : 'Open-Meteo model forecast for the hour each point is reached (not an observation, not current conditions)'}.</li>
+      <li><strong>Sun position and glare</strong>: computed with SunCalc for each point's future arrival time and heading.</li>
+      <li><strong>Arrival times</strong>: estimated from ${esc(m.route.engine)} free-flow routing${dly ? ' plus your delay assumption' : ''}; no live or predicted traffic is used.</li>
+      <li><strong>Observed / live data</strong>: none. GlarePilot does not show current conditions and does not track your location.</li></ul></details>`;
+  if (m.source.kind === 'synthetic') {
+    return { cls: 'synthetic', html: `<strong>Manual demo scenario — synthetic data.</strong> “${esc(m.source.title)}”: ${esc(m.source.story)} Weather${state.ev.delay?.minutes ? ' and the traffic delay are' : ' is'} hand-set on purpose; no network requests. Route geometry and routed times come from a recorded real ${esc(m.route.engine)} route captured ${esc(ny(m.source.routeCapturedAt))}. ${timing}${what}` };
+  }
+  if (m.source.kind === 'snapshot') {
+    return { cls: 'snapshot', html: `<strong>Recorded real data — not current.</strong> ${esc(m.route.engine)} route and Open-Meteo forecast retrieved ${esc(ny(m.source.capturedAt))}. ${timing}${what}` };
+  }
+  return { cls: 'live', html: `<strong>Real-data plan.</strong> ${esc(m.route.engine)} route and Open-Meteo forecast retrieved ${esc(ny(m.source.capturedAt))}. Trip departs ${esc(formatClock(ev.departureUtc, m.originTz))} and arrives ${esc(formatClock(ev.arrivalUtc, m.destTz))}. ${timing}${what}` };
+}
+
 function renderProvenance() {
   const m = state.model;
   const b = $('provenance');
   b.hidden = false;
   const banner = $('snapshot-banner');
+  const pv = provHtml();
+  $('prov').className = `prov ${pv.cls}`;
+  $('prov').innerHTML = pv.html;
+  if (m.source.kind === 'synthetic') {
+    b.className = 'badge synthetic';
+    b.textContent = 'Manual demo · synthetic data';
+    banner.hidden = true;
+    return;
+  }
   if (m.source.kind === 'snapshot') {
     b.className = 'badge snapshot';
     b.textContent = 'Recorded snapshot';
     banner.hidden = false;
-    banner.innerHTML = `<strong>Recorded snapshot — not current conditions.</strong> Route (${esc(m.route.engine)}) and Open-Meteo forecast were captured ${esc(formatClock(m.source.capturedAt, 'America/New_York'))} on ${new Date(m.source.capturedAt).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })}. Sun positions are computed for this snapshot's departure. Press “See my drive” for live data.`;
+    banner.innerHTML = `<strong>Recorded snapshot — not current conditions.</strong> Press “See my drive” for a fresh real-data plan.`;
   } else {
     b.className = 'badge live';
     b.textContent = `Live forecast · ${m.route.engine} route`;
@@ -250,9 +316,10 @@ function renderKpis() {
   const t = ev.totals;
   const glareStrong = t.expectedGlareMin[2] + t.expectedGlareMin[3];
   const glareGeo = t.glareMin[1] + t.glareMin[2] + t.glareMin[3];
-  const breaksNote = $('breaks').value === 'none' ? 'no stops' : `incl. ${BREAK_PLANS[$('breaks').value].label} breaks`;
+  const o = tripOpts();
+  const breaksNote = [o.breaks === 'none' ? 'no stops' : `incl. ${BREAK_PLANS[o.breaks].label} breaks`, ev.delay?.minutes ? `+${formatDuration(ev.delay.extraSec)} assumed delay` : ''].filter(Boolean).join(' · ');
   $('kpis').innerHTML = [
-    kpi('time', 'Drive', formatDuration(ev.driveSec, { compact: true }), `${fmt.dist(model.route.totalDistM)} · ${breaksNote}`),
+    kpi('time', ev.delay?.minutes ? 'Drive + delay' : 'Drive', formatDuration(ev.movingSec, { compact: true }), `${fmt.dist(model.route.totalDistM)} · ${breaksNote}`),
     kpi('time', 'Arrive', formatClock(ev.arrivalUtc, model.destTz, { weekday: false }), `${new Intl.DateTimeFormat('en-US', { timeZone: model.destTz, weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(ev.arrivalUtc))} · ${model.destLabel}`),
     kpi(
       'glare',
@@ -317,9 +384,25 @@ function applyDeparture(utc) {
   $('kpis').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function select(i, { range } = {}) {
+function previewAt(i) {
+  const { model, ev } = state;
+  if (i == null || i === state.sel) {
+    mapView.setPreview(null);
+    const row = ev.rows[state.sel];
+    renderMoment(row, model.samples[state.sel]);
+    $('compass').innerHTML = `${compassSvg(row, model.samples[state.sel])}<div class="compass-text">${compassText(row, model.samples[state.sel])}</div>`;
+    return;
+  }
+  mapView.setPreview(model.samples[i]);
+  renderMoment(ev.rows[i], model.samples[i], { preview: true });
+  $('compass').innerHTML = `${compassSvg(ev.rows[i], model.samples[i])}<div class="compass-text">${compassText(ev.rows[i], model.samples[i])}</div>`;
+}
+
+function select(i, { range, fromChase = false } = {}) {
   const { model, ev } = state;
   state.sel = Math.max(0, Math.min(ev.rows.length - 1, i));
+  if (!fromChase) chase?.setCurrent(state.sel);
+  mapView.setPreview(null);
   const row = ev.rows[state.sel];
   const smp = model.samples[state.sel];
   $('scrub').value = String(state.sel);
@@ -330,7 +413,7 @@ function select(i, { range } = {}) {
   $('compass').innerHTML = `${compassSvg(row, smp)}<div class="compass-text">${compassText(row, smp)}</div>`;
 }
 
-function renderMoment(row, smp) {
+function renderMoment(row, smp, { preview = false } = {}) {
   const { model, ev } = state;
   const tz = row.timezone || model.originTz;
   const where = placeLabel(model, smp);
@@ -352,11 +435,14 @@ function renderMoment(row, smp) {
         ['Visibility', wx.visibility == null ? '—' : fmt.dist(wx.visibility)],
       ]
     : [['Forecast', 'Outside the available forecast window']];
-  $('moment').innerHTML = `<div class="moment-head"><div><div class="moment-time">${esc(formatClock(row.t, tz))}</div>
+  const conds = rowConditions(row).filter((c) => c !== 'night');
+  for (const c of conds) if (c === 'jam') chips.push(`<span class="chip" style="background:#fff0f6;color:#a61e4d">Assumed delay${model.source.kind === 'synthetic' ? ' (scenario)' : ''}</span>`);
+  const srcNote = model.source.kind === 'synthetic' ? 'Hand-set synthetic value for this scenario — not a forecast.' : wx ? `Open-Meteo model forecast for ${esc(formatClock(wx.validTime, tz, { weekday: false }))} (nearest checkpoint). Not an observation.` : '';
+  $('moment').innerHTML = `${preview ? '<div class="chip" style="display:inline-block;margin-bottom:6px;background:#fff4e6;color:#a34b00">Preview ahead · current position unchanged</div>' : ''}<div class="moment-head"><div><div class="moment-time">${esc(formatClock(row.t, tz))}</div>
       <div class="moment-where">${esc(where.text)} · ${formatDuration((row.t - ev.departureUtc) / 1000)} into the trip</div></div></div>
     <div class="chips">${chips.join('')}</div>
     <dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
-    <p class="fineprint">${wx ? `Open-Meteo model forecast for ${esc(formatClock(wx.validTime, tz, { weekday: false }))} (nearest checkpoint). Not an observation.` : ''}</p>`;
+    <p class="fineprint">${srcNote}${row.delaySec ? ` Arrival here includes ${formatDuration(row.delaySec)} of assumed delay.` : ''}</p>`;
 }
 
 function renderOptimizer() {
@@ -426,19 +512,148 @@ document.querySelectorAll('[data-units]').forEach((b) =>
     fmt = makeFormatter(state.units);
     document.querySelectorAll('[data-units]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     if (state.model) {
-      state.recs = buildAdvice(state.model, state.ev, { vehicle: $('vehicle').value, optimizer: state.opt, unitsFmt: fmt });
+      state.recs = buildAdvice(state.model, state.ev, { vehicle: tripOpts().vehicle, optimizer: state.opt, unitsFmt: fmt });
       renderKpis();
+      renderDelayCard();
       renderAdvice();
       renderTable();
       select(state.sel);
     }
   })
 );
-for (const id of ['vehicle', 'breaks']) {
+for (const id of ['vehicle', 'breaks', 'delay-min', 'delay-where']) {
   $(id).addEventListener('change', () => {
     if (state.model && !state.inflight) evaluate(state.ev.departureUtc);
   });
 }
+
+// ---------- delay impact ----------
+function renderDelayCard() {
+  const card = $('delay-card');
+  const ev = state.ev;
+  const base = state.baseline;
+  if (!base || !ev.delay?.minutes) {
+    card.hidden = true;
+    return;
+  }
+  const m = state.model;
+  const strong = (e) => e.totals.expectedGlareMin[2] + e.totals.expectedGlareMin[3];
+  let hourShift = 0;
+  for (const i of m.pointIdx) {
+    if (ev.rows[i].wx && base.rows[i].wx && ev.rows[i].wx.validTime !== base.rows[i].wx.validTime) hourShift++;
+  }
+  const cell = (label, a, b, unit = 'min', lowerBetter = true) => {
+    const d = Math.round(b) - Math.round(a);
+    const cls = d === 0 ? '' : (d > 0) === lowerBetter ? 'worse' : 'better';
+    return `<div><dt>${label}</dt><dd class="${cls}">${Math.round(a)} → ${Math.round(b)} ${unit}</dd></div>`;
+  };
+  const synthetic = m.source.kind === 'synthetic';
+  card.hidden = false;
+  card.innerHTML = `<div class="card-head"><h3 class="card-title">What the assumed delay changes</h3><span class="fineprint">${synthetic ? 'Scenario delay (hand-set)' : 'Your assumption'} — not measured or predicted traffic</span></div>
+    <p class="fineprint" style="margin-top:0">+${formatDuration(ev.delay.extraSec)} ${esc(ev.delay.label)}. Every point after the slow stretch is reached later, so ${hourShift} of ${m.pointIdx.length} forecast checkpoints move to a different forecast hour and the sun angles are recomputed.</p>
+    <dl class="delay-grid">
+      <div><dt>Arrival</dt><dd class="worse">${esc(formatClock(base.arrivalUtc, m.destTz, { weekday: false }))} → ${esc(formatClock(ev.arrivalUtc, m.destTz, { weekday: false }))}</dd></div>
+      ${cell('Wet roads', base.totals.wetMin, ev.totals.wetMin)}
+      ${cell('Strong glare', strong(base), strong(ev))}
+      ${cell('After dark', base.totals.nightMin, ev.totals.nightMin)}
+      ${cell('Strong crosswind', base.totals.windMin, ev.totals.windMin)}
+      ${cell('Snow / ice', base.totals.snowMin + base.totals.iceMin, ev.totals.snowMin + ev.totals.iceMin)}
+    </dl>`;
+}
+
+// ---------- modes, scenarios, views, motion ----------
+function setMode(mode) {
+  state.mode = mode;
+  document.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  $('scenario-card').hidden = mode !== 'demo';
+  $('trip-form').hidden = mode === 'demo';
+  document.querySelector('.presets-card').hidden = mode === 'demo';
+  if (mode === 'real' && state.model?.source.kind === 'synthetic') {
+    state.model = null;
+    state.scenario = null;
+    renderScenarioButtons();
+    show('empty');
+    $('provenance').hidden = true;
+  }
+}
+document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+function renderScenarioButtons() {
+  const icon = { 'storm-crosswind': 'rain', 'sunset-glare': 'glare', 'snow-fog-night': 'snow', 'congestion-shift': 'jam' };
+  $('scenarios').innerHTML = SCENARIOS.map(
+    (x) => `<button type="button" class="scenario" data-scenario="${x.id}" aria-pressed="${state.scenario === x.id}"><span class="cond-badge static" style="--ring:${COND_RING[icon[x.id]]};width:36px;height:36px">${COND_SVG[icon[x.id]]}</span><span><strong>${esc(x.title)}</strong><span class="sub">${esc(x.subtitle)} · synthetic</span></span></button>`
+  ).join('');
+  $('scenarios').querySelectorAll('[data-scenario]').forEach((b) => b.addEventListener('click', () => openScenario(b.dataset.scenario)));
+}
+
+async function openScenario(id) {
+  const scn = SCENARIOS.find((x) => x.id === id);
+  state.inflight?.abort();
+  setMode('demo');
+  if (!scn) {
+    $('error-msg').textContent = `There is no manual demo scenario called “${id}”. Available: ${SCENARIOS.map((x) => x.id).join(', ')}`;
+    show('error');
+    return;
+  }
+  const ctrl = new AbortController();
+  state.inflight = ctrl;
+  show('loading');
+  setStage('compute');
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}fixtures/${scn.route}`, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`route file missing (HTTP ${res.status})`);
+    const snap = await res.json();
+    if (ctrl.signal.aborted) return;
+    const built = buildScenarioModel(scn, snap, places);
+    state.model = built.model;
+    state.scenarioNow = built.nowMs;
+    state.scenario = id;
+    renderScenarioButtons();
+    show('result');
+    evaluate(built.departureUtc, { fit: true });
+    focusResults();
+  } catch (e) {
+    if (ctrl.signal.aborted) return;
+    $('error-msg').textContent = `Could not open the demo scenario: ${e.message}`;
+    show('error');
+  } finally {
+    if (state.inflight === ctrl) state.inflight = null;
+  }
+}
+
+function setView(view) {
+  state.view = view;
+  document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+  const is3d = view === '3d';
+  $('map').hidden = is3d;
+  $('chase').hidden = !is3d;
+  document.querySelector('.map-toolbar [aria-label="Map layer"]').hidden = is3d;
+  $('legend').hidden = is3d;
+  const el = is3d ? $('chase') : $('map');
+  el.classList.remove('view-enter');
+  void el.offsetWidth;
+  if (!reducedMotion()) el.classList.add('view-enter');
+  if (is3d) {
+    chase?.setCurrent(state.sel);
+    chase?.show(true);
+    $('chase').querySelector('canvas').focus({ preventScroll: true });
+  } else {
+    chase?.show(false);
+    previewAt(null);
+    requestAnimationFrame(() => mapView?.invalidate());
+  }
+}
+document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+
+function setMotion(on) {
+  document.body.classList.toggle('motion-off', !on);
+  const b = $('motion');
+  b.setAttribute('aria-pressed', String(on));
+  b.textContent = on ? 'Animation: on' : reducedMotion() ? 'Animation: off (reduced motion)' : 'Animation: off';
+  chase?.redraw();
+}
+$('motion').addEventListener('click', () => setMotion(document.body.classList.contains('motion-off')));
+setMotion(!reducedMotion());
 
 // ---------- presets & snapshots ----------
 function renderPresets() {
@@ -455,6 +670,7 @@ function fillForm(origin, dest, dep) {
 }
 
 function runPreset(id) {
+  setMode('real');
   const p = PRESETS.find((x) => x.id === id);
   const origin = PLACES[p.origin];
   const dest = PLACES[p.dest];
@@ -464,6 +680,7 @@ function runPreset(id) {
 }
 
 async function openSnapshot(id = PRESETS[0].id) {
+  setMode('real');
   const p = PRESETS.find((x) => x.id === id || x.snapshot === `${id}.json`);
   state.inflight?.abort();
   const ctrl = new AbortController();
@@ -504,6 +721,10 @@ renderPresets();
   const tz = 'America/New_York';
   fillForm(PLACES.amherst, PLACES.chicago, nextDayAt(8, 0, tz));
   const q = new URLSearchParams(location.search);
-  if (q.get('snapshot')) openSnapshot(q.get('snapshot'));
+  renderScenarioButtons();
+  if (q.get('demo')) openScenario(q.get('demo'));
+  else if (q.get('mode') === 'demo') setMode('demo');
+  else if (q.get('snapshot')) openSnapshot(q.get('snapshot'));
   else if (q.get('preset')) runPreset(q.get('preset'));
+  if (q.get('view') === '3d') setView('3d');
 }

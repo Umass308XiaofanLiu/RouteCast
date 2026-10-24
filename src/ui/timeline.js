@@ -63,12 +63,13 @@ export function createTimeline(el, { onPick }) {
     const x1 = (i) => xOf(edges[i + 1]);
     let y = TOP;
     const parts = [];
-    const totalH = TOP + ROWS.reduce((a, r) => a + r.h + GAP, 0) + 14;
+    const rowsDef = ev.delay?.extraSec ? [...ROWS, { key: 'jam', label: 'Assumed delay', h: 10 }] : ROWS;
+    const totalH = TOP + rowsDef.reduce((a, r) => a + r.h + GAP, 0) + 14;
 
     // Highlighted range (from a selected recommendation).
     if (range) parts.push(`<rect x="${x0(range[0])}" y="4" width="${Math.max(2, x1(range[1]) - x0(range[0]))}" height="${totalH - 8}" fill="#ffe8cc" opacity=".55" rx="4"/>`);
 
-    for (const row of ROWS) {
+    for (const row of rowsDef) {
       parts.push(`<text class="row-label" x="0" y="${y + Math.min(row.h, 14) - 2}">${row.label}</text>`);
       if (row.key === 'light') {
         for (const [a, b, c] of runs(rows, (r) => r.phase)) parts.push(`<rect x="${x0(a)}" y="${y}" width="${Math.max(0.5, x1(b) - x0(a))}" height="${row.h}" fill="${PHASE_COLOR[c]}"/>`);
@@ -111,6 +112,11 @@ export function createTimeline(el, { onPick }) {
           });
           parts.push(`<path d="${d}" fill="none" stroke="${C.temp}" stroke-width="2"/>`);
           parts.push(`<text x="0" y="${y + 28}">${Math.round(lo)}–${Math.round(hi)}${fmt.tempUnit}</text>`);
+        }
+      } else if (row.key === 'jam') {
+        parts.push(`<rect x="${LABEL_W}" y="${y}" width="${width - LABEL_W - 8}" height="${row.h}" fill="#f8f0f4"/>`);
+        for (const [a, b, c] of runs(rows, (r) => (r.congested ? 1 : 0))) {
+          if (c) parts.push(`<rect x="${x0(a)}" y="${y}" width="${Math.max(1, x1(b) - x0(a))}" height="${row.h}" fill="#c2255c"><title>Assumed delay (scenario, not measured traffic)</title></rect>`);
         }
       } else if (row.key === 'wind') {
         const maxW = Math.max(40, ...rows.map((r) => r.hz.crossMph || 0));

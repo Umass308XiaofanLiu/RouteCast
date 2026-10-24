@@ -10,6 +10,32 @@ export const BREAK_PLANS = {
   long: { label: '30 min every 3 h', everySec: 10800, durationSec: 1800 },
 };
 
+// Delay scenarios. GlarePilot has no live or predictive traffic source (the free routing
+// servers return free-flow times), so delays are explicit USER ASSUMPTIONS. A delay is extra
+// in-car time spread linearly over a stretch of the route: points before the stretch are
+// unaffected, points inside it are partially delayed, every point after it is delayed in full.
+export const DELAY_WHERE = {
+  spread: { label: 'spread over the whole trip', from: 0, to: 1 },
+  start: { label: 'in the first quarter', from: 0, to: 0.25 },
+  middle: { label: 'mid-route', from: 0.375, to: 0.625 },
+  end: { label: 'in the last quarter', from: 0.75, to: 1 },
+};
+
+export function makeDelay(delay, totalDistM) {
+  const minutes = Math.max(0, Number(delay?.minutes) || 0);
+  const where = DELAY_WHERE[delay?.where] ? delay.where : 'middle';
+  const w = DELAY_WHERE[where];
+  return { minutes, where, extraSec: minutes * 60, fromM: w.from * totalDistM, toM: w.to * totalDistM, label: w.label };
+}
+
+/** Extra seconds accumulated by the time the driver reaches `distM`. */
+export function congestionAt(d, distM) {
+  if (!d?.extraSec) return 0;
+  if (distM <= d.fromM) return 0;
+  if (distM >= d.toM) return d.extraSec;
+  return (d.extraSec * (distM - d.fromM)) / (d.toM - d.fromM);
+}
+
 /** Elapsed trip seconds after `driveSec` of driving, including completed breaks. */
 export function elapsedWithBreaks(driveSec, totalDriveSec, plan = BREAK_PLANS.none) {
   if (!plan?.everySec) return driveSec;
@@ -35,9 +61,14 @@ export function placeLabel(model, sample) {
  * Evaluate every route sample for a departure (UTC ms).
  * model = { route, samples, pointIdx, sampleToPoint, forecasts, places }
  */
-export function evaluateTrip(model, departureUtc, { breakPlan = BREAK_PLANS.none, vehicle = 'car' } = {}) {
+export function evaluateTrip(model, departureUtc, { breakPlan = BREAK_PLANS.none, vehicle = 'car', delay = null } = {}) {
   const { samples, sampleToPoint, forecasts } = model;
   const totalDrive = samples[samples.length - 1].driveSec;
+  const totalDist = samples[samples.length - 1].distM;
+  const dly = makeDelay(delay, totalDist);
+  // Moving (in-car) time = routed drive time + scenario delay accumulated so far.
+  const moving = samples.map((smp) => smp.driveSec + congestionAt(dly, smp.distM));
+  const totalMoving = totalDrive + dly.extraSec;
   const rows = new Array(samples.length);
   const totals = { glareMin: [0, 0, 0, 0], expectedGlareMin: [0, 0, 0, 0], rearMin: 0, nightMin: 0, twilightMin: 0, wetMin: 0, snowMin: 0, iceMin: 0, lowVisMin: 0, windMin: 0, stormMin: 0, heavyRainMin: 0, missingMin: 0 };
   let minTemp = Infinity;
@@ -46,7 +77,7 @@ export function evaluateTrip(model, departureUtc, { breakPlan = BREAK_PLANS.none
   let maxCrossIdx = -1;
   for (let s = 0; s < samples.length; s++) {
     const smp = samples[s];
-    const t = departureUtc + elapsedWithBreaks(smp.driveSec, totalDrive, breakPlan) * 1000;
+    const t = departureUtc + elapsedWithBreaks(moving[s], totalMoving, breakPlan) * 1000;
     const sun = sunPosition(t, smp.lat, smp.lon);
     const phase = lightPhase(sun.altitude);
     const g = geometricGlare(sun.altitude, sun.azimuth, smp.heading);
@@ -54,10 +85,11 @@ export function evaluateTrip(model, departureUtc, { breakPlan = BREAK_PLANS.none
     const wx = lookupForecast(series, t);
     const adj = cloudAdjustedSeverity(g.severity, wx);
     const hz = hazards(wx, smp.heading, vehicle);
-    rows[s] = { t, sun, phase, glare: g, expected: adj.severity, muted: adj.muted, mutedReason: adj.reason, wx, hz, timezone: series?.timezone };
-    // Minutes represented by this sample: half the driving gap to each neighbor.
-    const prev = s > 0 ? samples[s - 1].driveSec : smp.driveSec;
-    const next = s < samples.length - 1 ? samples[s + 1].driveSec : smp.driveSec;
+    const congested = dly.extraSec > 0 && smp.distM > dly.fromM && smp.distM < dly.toM;
+    rows[s] = { t, sun, phase, glare: g, expected: adj.severity, muted: adj.muted, mutedReason: adj.reason, wx, hz, timezone: series?.timezone, congested, delaySec: moving[s] - smp.driveSec };
+    // Minutes represented by this sample: half the in-car time gap to each neighbor.
+    const prev = s > 0 ? moving[s - 1] : moving[s];
+    const next = s < samples.length - 1 ? moving[s + 1] : moving[s];
     const min = (next - prev) / 2 / 60;
     totals.glareMin[g.severity] += min;
     totals.expectedGlareMin[adj.severity] += min;
@@ -87,6 +119,8 @@ export function evaluateTrip(model, departureUtc, { breakPlan = BREAK_PLANS.none
     arrivalUtc,
     elapsedSec: (arrivalUtc - departureUtc) / 1000,
     driveSec: totalDrive,
+    movingSec: totalMoving,
+    delay: dly,
     rows,
     totals,
     minTemp: Number.isFinite(minTemp) ? minTemp : null,
@@ -102,6 +136,7 @@ export function evaluateTrip(model, departureUtc, { breakPlan = BREAK_PLANS.none
       lowVis: findWindows(rows, (r) => r.hz.lowVis),
       night: findWindows(rows, (r) => r.phase === 'night'),
       missing: findWindows(rows, (r) => !r.wx),
+      jam: findWindows(rows, (r) => r.congested),
     },
   };
 }
@@ -112,7 +147,7 @@ export function findWindows(rows, pred, maxGap = 1) {
   let start = -1;
   let lastHit = -1;
   for (let i = 0; i < rows.length; i++) {
-    if (pred(rows[i])) {
+    if (pred(rows[i], i)) {
       if (start < 0) start = i;
       lastHit = i;
     } else if (start >= 0 && i - lastHit > maxGap) {

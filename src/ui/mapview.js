@@ -33,6 +33,8 @@ export function createMap(el, { onPick }) {
   const route = L.layerGroup().addTo(map);
   const marks = L.layerGroup().addTo(map);
   const highlight = L.layerGroup().addTo(map);
+  const jam = L.layerGroup().addTo(map);
+  const previewPin = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<div class="preview-pin"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }), keyboard: false, interactive: false });
   const car = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<div class="car-pin"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }), keyboard: false, interactive: false });
   let samples = [];
 
@@ -106,6 +108,17 @@ export function createMap(el, { onPick }) {
     },
     setCar(sample) {
       car.setLatLng([sample.lat, sample.lon]);
+    },
+    setPreview(sample) {
+      if (!sample) previewPin.remove();
+      else previewPin.setLatLng([sample.lat, sample.lon]).addTo(map);
+    },
+    setJam(model, windows) {
+      jam.clearLayers();
+      for (const [a, b] of windows || []) {
+        const pts = model.samples.slice(a, b + 1).map((s) => [s.lat, s.lon]);
+        if (pts.length > 1) L.polyline(pts, { color: '#c2255c', weight: 3, opacity: 0.95, dashArray: '2 7', lineCap: 'round', className: 'jam-line', interactive: false }).addTo(jam);
+      }
     },
     highlight(model, range) {
       highlight.clearLayers();

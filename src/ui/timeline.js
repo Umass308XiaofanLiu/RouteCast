@@ -82,6 +82,7 @@ export function createTimeline(el, { onPick }) {
         }
       } else if (row.key === 'precip') {
         const maxP = Math.max(2, ...rows.map((r) => r.wx?.precipitation ?? 0));
+        if (!rows.some((r) => (r.wx?.precipitation ?? 0) >= 0.05 || !r.wx)) parts.push(`<text x="${LABEL_W + 6}" y="${y + row.h / 2 + 4}">Dry the whole way</text>`);
         parts.push(`<line x1="${LABEL_W}" x2="${width - 8}" y1="${y + row.h}" y2="${y + row.h}" stroke="#dee2e6"/>`);
         for (const [a, b, c] of runs(rows, (r) => `${weatherCategory(r)}|${(r.wx?.precipitation ?? 0).toFixed(1)}`)) {
           const [cat, p] = c.split('|');

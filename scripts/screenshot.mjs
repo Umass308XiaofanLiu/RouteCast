@@ -19,7 +19,7 @@ try {
   for (const q of queries.length ? queries : ['']) {
     for (const v of views) {
       const page = await browser.newPage();
-      await page.setViewport({ width: v.width, height: v.height, deviceScaleFactor: v.mobile ? 2 : 1, isMobile: v.mobile, hasTouch: v.mobile });
+      await page.setViewport({ width: v.width, height: v.height, deviceScaleFactor: 1, isMobile: v.mobile, hasTouch: v.mobile });
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
       page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));

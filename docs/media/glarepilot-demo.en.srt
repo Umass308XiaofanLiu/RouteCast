@@ -1,106 +1,106 @@
 1
-00:00:00,314 --> 00:00:04,516
+00:00:00,313 --> 00:00:04,515
 GlarePilot: weather and sun glare where — and when — you’ll actually drive
 
 2
-00:00:04,516 --> 00:00:08,396
+00:00:04,515 --> 00:00:08,406
 Each place gets the forecast and sun position for the moment you reach it
 
 3
-00:00:08,396 --> 00:00:13,580
+00:00:08,406 --> 00:00:13,666
 Enter any US trip, or try a demo trip — demo
 trips use the live forecast for tomorrow
 
 4
-00:00:13,580 --> 00:00:17,574
+00:00:13,666 --> 00:00:17,887
 Albany → Boston, leaving 6:45 AM tomorrow —
 routing, then one batched forecast request
 
 5
-00:00:17,574 --> 00:00:24,721
+00:00:17,887 --> 00:00:24,961
 Trip summary (live data): drive 2h 49m, arrive 9:34 AM EDT, sun glare 35 min
 
 6
-00:00:24,721 --> 00:00:28,926
+00:00:24,961 --> 00:00:29,166
 Top recommendation: “ESE-bound sunrise glare 11 mi
 from Pittsfield, MA” — where, when, why and what to do
 
 7
-00:00:28,926 --> 00:00:35,096
+00:00:29,166 --> 00:00:35,398
 Sun glare map layer: the route is colored
 by glare severity when you pass each point
 
 8
-00:00:35,096 --> 00:00:49,834
+00:00:35,398 --> 00:00:50,138
 Scrub along the trip: forecast, sun height and your heading, minute by minute
 
 9
-00:00:49,834 --> 00:00:57,478
+00:00:50,138 --> 00:00:57,836
 Sun vs. heading: shaded wedge = windshield glare zone — here: Severe glare
 
 10
-00:00:57,478 --> 00:01:02,861
+00:00:57,836 --> 00:01:03,117
 Amherst → Chicago, leaving 8:00 AM tomorrow
 — a full day westbound into the sunset
 
 11
-00:01:02,861 --> 00:01:07,481
+00:01:03,117 --> 00:01:07,678
 Trip summary (live data): 14h 24m drive —
 arrival shown in Chicago time: 9:24 PM CDT
 
 12
-00:01:07,481 --> 00:01:11,076
+00:01:07,678 --> 00:01:11,331
 Map layers: Sun glare…
 
 13
-00:01:11,076 --> 00:01:15,351
+00:01:11,331 --> 00:01:15,607
 …Weather: forecast rain, snow, fog and wind at your arrival time…
 
 14
-00:01:15,351 --> 00:01:22,461
+00:01:15,607 --> 00:01:22,846
 …Daylight: day, low sun, twilight and night along the drive
 
 15
-00:01:22,461 --> 00:01:29,793
+00:01:22,846 --> 00:01:30,163
 Recommendation: “WSW-bound sunset glare 13 mi from Lorain,
 OH” — click to highlight it on the map and timeline
 
 16
-00:01:29,793 --> 00:01:34,035
+00:01:30,163 --> 00:01:34,423
 “When should I leave?” — same route, departures
 −3 h…+3 h, transparent exposure score
 
 17
-00:01:34,035 --> 00:01:39,410
+00:01:34,423 --> 00:01:39,812
 Lower bars = less glare, wet, wind and
 after-dark exposure; the best option is marked
 
 18
-00:01:39,410 --> 00:01:45,000
+00:01:39,812 --> 00:01:45,419
 Suggestion: “Leave 1 h earlier: Sun 7:00 AM EDT” → Try this departure
 
 19
-00:01:45,000 --> 00:01:51,793
+00:01:45,419 --> 00:01:52,212
 Re-evaluated instantly — after dark: 3h 14m → 2h 9m; arrive 8:24 PM CDT
 
 20
-00:01:51,793 --> 00:01:59,368
+00:01:52,212 --> 00:01:59,811
 Forecast checkpoints: local arrival time,
 weather and sun at each place on the route
 
 21
-00:01:59,368 --> 00:02:06,241
+00:01:59,811 --> 00:02:06,660
 Units: one click switches between °F · mi and °C · km
 
 22
-00:02:06,550 --> 00:02:15,594
+00:02:06,971 --> 00:02:15,993
 Phone layout (390 × 844): the same planner, stacked for small screens
 
 23
-00:02:15,594 --> 00:02:35,133
+00:02:15,993 --> 00:02:35,522
 Amherst → Chicago on a phone (live data): summary, map, timeline and advice
 
 24
-00:02:35,441 --> 00:02:45,316
+00:02:35,860 --> 00:02:45,719
 Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position
 Planning aid, not a safety system. Built with Kiro.

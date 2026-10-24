@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-24T20:50:16.508Z",
+  "capturedAt": "2026-10-24T21:09:07.972Z",
   "baseUrl": "https://umass308xiaofanliu.github.io/glarepilot/",
   "scenes": [
     {
@@ -7,169 +7,169 @@
       "mobile": false,
       "mode": "live",
       "provenance": "Live forecast · Valhalla route",
-      "kpis": "DRIVE\n2h 49m\n170 mi · no stops\nARRIVE\n9:34 AM EDT\nSun, Oct 25 · Boston, MA\nSUN GLARE\n35 min\n56 min sun in view\nAFTER DARK\n6m\n4% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 47°F\ncrosswind gusts to 8 mph",
-      "at": "2026-10-24T20:50:34.008Z"
+      "kpis": "DRIVE\n2h 49m\n170 mi · no stops\nARRIVE\n9:34 AM EDT\nSun, Oct 25 · Boston, MA\nSUN GLARE\n35 min\nstrong/severe · 56 min sun in view\nAFTER DARK\n6m\n4% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 47°F\ncrosswind gusts to 8 mph",
+      "at": "2026-10-24T21:09:25.864Z"
     },
     {
       "id": "chicago-sunset",
       "mobile": false,
       "mode": "live",
       "provenance": "Live forecast · Valhalla route",
-      "kpis": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n9:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\nMild only\n105 min sun in view\nAFTER DARK\n3h 14m\n22% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 68°F\ncrosswind gusts to 14 mph",
-      "at": "2026-10-24T20:51:19.882Z"
+      "kpis": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n9:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\nSoftened\nby clouds · 18 min low sun ahead\nAFTER DARK\n3h 14m\n22% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 68°F\ncrosswind gusts to 14 mph",
+      "at": "2026-10-24T21:10:11.696Z"
     },
     {
       "id": "chicago-sunset",
       "mobile": true,
       "mode": "live",
       "provenance": "Live forecast · Valhalla route",
-      "kpis": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n9:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\nMild only\n105 min sun in view\nAFTER DARK\n3h 14m\n22% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 68°F\ncrosswind gusts to 14 mph",
-      "at": "2026-10-24T20:52:34.337Z"
+      "kpis": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n9:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\nSoftened\nby clouds · 18 min low sun ahead\nAFTER DARK\n3h 14m\n22% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 68°F\ncrosswind gusts to 14 mph",
+      "at": "2026-10-24T21:11:26.271Z"
     }
   ],
   "applied": {
     "title": "Leave 1 h earlier: Sun 7:00 AM EDT",
     "beforeAfterDark": "3h 14m",
     "afterAfterDark": "2h 9m",
-    "kpisAfter": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n8:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\n1 min\n79 min sun in view\nAFTER DARK\n2h 9m\n15% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n35°F – 69°F\ncrosswind gusts to 12 mph"
+    "kpisAfter": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n8:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\n1 min\nstrong/severe · 79 min sun in view\nAFTER DARK\n2h 9m\n15% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n35°F – 69°F\ncrosswind gusts to 12 mph"
   },
-  "durationSeconds": 165.32,
+  "durationSeconds": 165.72,
   "segments": [
     {
       "name": "a-desktop",
-      "seconds": 126.24,
-      "frames": 1854
+      "seconds": 126.66,
+      "frames": 1874
     },
     {
       "name": "b-phone",
-      "seconds": 28.89,
-      "frames": 534
+      "seconds": 28.86,
+      "frames": 607
     },
     {
       "name": "c-closing",
-      "seconds": 10.18,
-      "frames": 119
+      "seconds": 10.2,
+      "frames": 120
     }
   ],
   "captions": [
     {
       "start": 0.31,
-      "end": 4.52,
+      "end": 4.51,
       "text": "GlarePilot: weather and sun glare where — and when — you’ll actually drive"
     },
     {
       "start": 4.52,
-      "end": 8.4,
+      "end": 8.41,
       "text": "Each place gets the forecast and sun position for the moment you reach it"
     },
     {
-      "start": 8.4,
-      "end": 13.58,
+      "start": 8.41,
+      "end": 13.67,
       "text": "Enter any US trip, or try a demo trip — demo trips use the live forecast for tomorrow"
     },
     {
-      "start": 13.58,
-      "end": 17.57,
+      "start": 13.67,
+      "end": 17.89,
       "text": "Albany → Boston, leaving 6:45 AM tomorrow — routing, then one batched forecast request"
     },
     {
-      "start": 17.57,
-      "end": 24.72,
+      "start": 17.89,
+      "end": 24.96,
       "text": "Trip summary (live data): drive 2h 49m, arrive 9:34 AM EDT, sun glare 35 min"
     },
     {
-      "start": 24.72,
-      "end": 28.93,
+      "start": 24.96,
+      "end": 29.17,
       "text": "Top recommendation: “ESE-bound sunrise glare 11 mi from Pittsfield, MA” — where, when, why and what to do"
     },
     {
-      "start": 28.93,
-      "end": 35.1,
+      "start": 29.17,
+      "end": 35.4,
       "text": "Sun glare map layer: the route is colored by glare severity when you pass each point"
     },
     {
-      "start": 35.1,
-      "end": 49.83,
+      "start": 35.4,
+      "end": 50.14,
       "text": "Scrub along the trip: forecast, sun height and your heading, minute by minute"
     },
     {
-      "start": 49.83,
-      "end": 57.48,
+      "start": 50.14,
+      "end": 57.84,
       "text": "Sun vs. heading: shaded wedge = windshield glare zone — here: Severe glare"
     },
     {
-      "start": 57.48,
-      "end": 62.86,
+      "start": 57.84,
+      "end": 63.12,
       "text": "Amherst → Chicago, leaving 8:00 AM tomorrow — a full day westbound into the sunset"
     },
     {
-      "start": 62.86,
-      "end": 67.48,
+      "start": 63.12,
+      "end": 67.68,
       "text": "Trip summary (live data): 14h 24m drive — arrival shown in Chicago time: 9:24 PM CDT"
     },
     {
-      "start": 67.48,
-      "end": 71.08,
+      "start": 67.68,
+      "end": 71.33,
       "text": "Map layers: Sun glare…"
     },
     {
-      "start": 71.08,
-      "end": 75.35,
+      "start": 71.33,
+      "end": 75.61,
       "text": "…Weather: forecast rain, snow, fog and wind at your arrival time…"
     },
     {
-      "start": 75.35,
-      "end": 82.46,
+      "start": 75.61,
+      "end": 82.85,
       "text": "…Daylight: day, low sun, twilight and night along the drive"
     },
     {
-      "start": 82.46,
-      "end": 89.79,
+      "start": 82.85,
+      "end": 90.16,
       "text": "Recommendation: “WSW-bound sunset glare 13 mi from Lorain, OH” — click to highlight it on the map and timeline"
     },
     {
-      "start": 89.79,
-      "end": 94.03,
+      "start": 90.16,
+      "end": 94.42,
       "text": "“When should I leave?” — same route, departures −3 h…+3 h, transparent exposure score"
     },
     {
-      "start": 94.03,
-      "end": 99.41,
+      "start": 94.42,
+      "end": 99.81,
       "text": "Lower bars = less glare, wet, wind and after-dark exposure; the best option is marked"
     },
     {
-      "start": 99.41,
-      "end": 105,
+      "start": 99.81,
+      "end": 105.42,
       "text": "Suggestion: “Leave 1 h earlier: Sun 7:00 AM EDT” → Try this departure"
     },
     {
-      "start": 105,
-      "end": 111.79,
+      "start": 105.42,
+      "end": 112.21,
       "text": "Re-evaluated instantly — after dark: 3h 14m → 2h 9m; arrive 8:24 PM CDT"
     },
     {
-      "start": 111.79,
-      "end": 119.37,
+      "start": 112.21,
+      "end": 119.81,
       "text": "Forecast checkpoints: local arrival time, weather and sun at each place on the route"
     },
     {
-      "start": 119.37,
-      "end": 126.24,
+      "start": 119.81,
+      "end": 126.66,
       "text": "Units: one click switches between °F · mi and °C · km"
     },
     {
-      "start": 126.55,
-      "end": 135.59,
+      "start": 126.97,
+      "end": 135.99,
       "text": "Phone layout (390 × 844): the same planner, stacked for small screens"
     },
     {
-      "start": 135.59,
-      "end": 155.13,
+      "start": 135.99,
+      "end": 155.52,
       "text": "Amherst → Chicago on a phone (live data): summary, map, timeline and advice"
     },
     {
-      "start": 155.44,
-      "end": 165.32,
+      "start": 155.86,
+      "end": 165.72,
       "text": "Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position Planning aid, not a safety system. Built with Kiro."
     }
   ]

@@ -52,13 +52,13 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
     recs.push({
       id: `glare-${w[0]}`,
       kind: 'glare',
-      priority: d.peakExpected >= 2 ? 'high' : d.peakSeverity >= 2 ? 'medium' : 'info',
+      priority: d.peakExpected >= 2 && d.strongMin >= 3 ? 'high' : d.peakSeverity >= 2 ? 'medium' : 'info',
       severity: d.peakExpected,
       weight: d.strongMin * 2 + d.minutes * 0.2,
       title: `${dir}-bound ${kindLabel} glare ${d.where.near ? d.where.near : ''}`.trim(),
       when: `${s.when} (${formatDuration(s.minutes * 60)})`,
       where: s.where === s.whereEnd ? s.where : `${s.where} → ${s.whereEnd}`,
-      why: `Sun ${Math.max(0, d.sunAltRange[0]).toFixed(0)}–${d.sunAltRange[1].toFixed(0)}° above the horizon and as close as ${d.minOffset.toFixed(0)}° to your heading (${dir}). Geometric risk: ${geomLabel}; ${cloudTxt}${muted ? `, so expected glare is ${expectedLabel}` : ''}.${d.strongMin >= 1 && d.minutes - d.strongMin >= 10 ? ` Expected strong/severe glare for about ${Math.round(d.strongMin)} min of this ${formatDuration(d.minutes * 60)} stretch; the rest is milder.` : ''}`,
+      why: `Sun ${Math.max(0, d.sunAltRange[0]).toFixed(0)}–${d.sunAltRange[1].toFixed(0)}° above the horizon and as close as ${d.minOffset.toFixed(0)}° to your heading (${dir}). Geometric risk: ${geomLabel}; ${cloudTxt}${muted ? `, so expected glare is ${expectedLabel}` : ''}.${d.peakExpected >= 2 && d.minutes - d.strongMin >= 10 ? ` Expected strong/severe glare for about ${Math.max(1, Math.round(d.strongMin))} min of this ${formatDuration(d.minutes * 60)} stretch; the rest is milder.` : ''}`,
       actions: d.peakExpected <= 1 && muted
         ? ['Clouds will likely soften this, but keep sunglasses handy in case they break.']
         : glareActions(d.peakExpected, vehicle, d.kind),

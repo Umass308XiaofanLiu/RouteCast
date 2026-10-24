@@ -257,10 +257,10 @@ function renderKpis() {
     kpi(
       'glare',
       'Sun glare',
-      glareStrong >= 1 ? `${Math.round(glareStrong)} min` : t.glareMin[2] + t.glareMin[3] >= 1 ? 'Cloud-softened' : glareGeo >= 1 ? 'Mild only' : 'None',
+      glareStrong >= 1 ? `${Math.round(glareStrong)} min` : t.glareMin[2] + t.glareMin[3] >= 1 ? 'Softened' : glareGeo >= 1 ? 'Mild only' : 'None',
       glareStrong >= 1 || glareGeo < 1
         ? glareGeo >= 1 ? `strong/severe · ${Math.round(glareGeo)} min sun in view` : 'sun never in your eyes'
-        : t.glareMin[2] + t.glareMin[3] >= 1 ? `${Math.round(t.glareMin[2] + t.glareMin[3])} min strong sun angle, clouds forecast` : `${Math.round(glareGeo)} min sun in view`
+        : t.glareMin[2] + t.glareMin[3] >= 1 ? `by clouds · ${Math.round(t.glareMin[2] + t.glareMin[3])} min low sun ahead` : `${Math.round(glareGeo)} min sun in view`
     ),
     kpi('night', 'After dark', ev.totals.nightMin >= 1 ? formatDuration(ev.totals.nightMin * 60, { compact: true }) : 'None', `${Math.round((ev.totals.nightMin / (ev.driveSec / 60)) * 100)}% of the drive`),
     kpi('wet', 'Wet / snowy', t.wetMin >= 1 ? formatDuration(t.wetMin * 60, { compact: true }) : 'Dry', t.snowMin >= 1 ? `${Math.round(t.snowMin)} min snow/ice` : t.missingMin > 1 ? `${Math.round(t.missingMin)} min no forecast` : 'forecast precipitation'),

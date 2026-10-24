@@ -308,7 +308,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
       title: `Leave ${formatDuration(Math.abs(b.offsetMin) * 60)} ${sign}: ${formatClock(b.departureUtc, model.originTz)}`,
       when: `Arrive ${formatClock(b.arrivalUtc, model.destTz)}`,
       where: 'Same route',
-      why: `${deltas.join('; ')}. Exposure score ${Math.round(c.score)} → ${Math.round(b.score)} (weighted minutes; lower is better).`,
+      why: `${deltas.join('; ').replace(/^./, (c) => c.toUpperCase())}. Exposure score ${Math.round(c.score)} → ${Math.round(b.score)} (weighted minutes; lower is better).`,
       actions: ['Use “Try this departure” to re-plan with this time.'],
       focus: null,
       range: null,

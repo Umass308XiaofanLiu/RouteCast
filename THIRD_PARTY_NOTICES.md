@@ -77,6 +77,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Their transitive dependencies are listed in `package-lock.json` and carry their own licenses.
 
+## Icons and animations
+
+The route condition icons (inline SVG in `src/ui/condlayer.js`), their CSS animations and the 3D chase preview graphics (`src/ui/chase3d.js`) are original work written for this repository; no third-party icon or animation assets are used (the icons are positioned on the map with Leaflet, listed above). The 3D chase preview is drawn with the browser's built-in Canvas 2D API and uses no third-party 3D library.
+
 ## Data and services
 
 | Service / data | Used for | Terms |

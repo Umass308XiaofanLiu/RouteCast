@@ -12,19 +12,19 @@ Forecast weather and sun glare for the places and times you will actually be on 
 
 ## Short description (~50 words)
 
-GlarePilot is a free web app for planning long US drives. It routes your trip, works out when you will reach each kilometer, and shows the forecast weather and sun position for that place and time. It flags sunrise/sunset glare, rain, snow, wind and darkness, explains why, and suggests a better departure time.
+GlarePilot plans long US drives: it routes the trip, projects when you reach each kilometer, and shows the forecast and sun glare for that place and time. Add an assumed traffic delay and see what changes. Animated condition icons, a 2D map and a 3D chase preview; synthetic demo scenarios are labeled.
 
 ## Full description of features and functionality
 
 GlarePilot answers one question before a long drive: what weather and sun glare will I meet at the places and times I will actually be there?
 
-The user searches a US origin and destination (Open-Meteo geocoding) or picks a demo trip, then enters the departure as wall-clock time in the origin's time zone. GlarePilot requests a driving route with per-segment routed travel times from Valhalla on the FOSSGIS public server, falling back to the OSRM demo server; it never substitutes a straight line. The route is resampled every 1 km with a smoothed heading, and each sample gets its arrival time, including an optional break plan.
+It has two clearly labeled modes. **Real-data planning** retrieves a live route and forecast now and evaluates every point at its projected future arrival time; it is not a current-conditions dashboard, and recorded real-data snapshots are labeled with their retrieval time. **Manual demo scenarios** (storm-crosswind, sunset-glare, snow-fog-night, congestion-shift) lay deliberately hand-set synthetic weather and delay on a recorded real route; they call no weather, routing or traffic API (only map tiles load).
 
-Up to 40 checkpoints share one Open-Meteo multi-location hourly forecast request. Each sample uses the forecast valid at its arrival time; values outside the forecast window are shown as missing, never invented. SunCalc gives the sun's altitude and azimuth, which are compared with the heading to score forward glare (sun visible, at most 25° high and within 30° of the heading), low sun behind the driver, twilight and night. Forecast cloud cover, precipitation and fog lower the expected glare while the geometric risk stays visible. Wind direction and gusts become crosswind and headwind components, with stricter limits for vans, trucks, RVs and motorcycles. Rain, heavy rain, snow, ice, fog and thunderstorms are flagged along the route.
+The user searches a US origin and destination (Open-Meteo geocoding) or picks a demo trip, then enters the departure in the origin's time zone. Valhalla on the FOSSGIS server (OSRM fallback) provides the route and routed times; no straight line is ever substituted. The route is resampled every 1 km, and each sample's arrival time includes optional breaks and an optional assumed delay. No live or predictive traffic source is connected (the free routers return free-flow times), so delay is the user's explicit assumption, spread over a chosen stretch; every later point's forecast hour and sun angle are recomputed.
 
-A departure optimizer re-evaluates the same route from three hours earlier to three hours later with a transparent weighted exposure score. A deterministic rules engine — not generative AI — turns all of this into prioritized recommendations, each with when, where, why (the triggering values) and concrete actions.
+Up to 40 checkpoints share one Open-Meteo request; each sample uses the forecast valid at its arrival time, and missing values stay missing. SunCalc sun position against the heading scores forward glare, low sun behind, twilight and night; clouds, rain and fog lower expected glare. Gusts become crosswind, with stricter limits for vans, trucks, RVs and motorcycles; rain, snow, ice, fog and thunderstorms are flagged.
 
-The interface shows KPIs, a Leaflet map with glare, weather and daylight layers, an hour-by-hour timeline with a scrubber, a sun-versus-heading compass, the optimizer, and a checkpoint table, with US/metric units and a mobile layout. Recorded snapshots, clearly labeled with their capture time, keep the demo working if public services are unavailable. GlarePilot is a planning aid, not a safety system.
+A departure optimizer compares −3 h … +3 h with a transparent score, and a deterministic rules engine — not generative AI — gives prioritized advice with when, where, why and actions. The UI shows KPIs, a 2D Leaflet map with original animated condition icons (reduced-motion aware), a Canvas 3D chase preview of the planned route (simulated playback, not GPS), a timeline, compass and table. GlarePilot is a planning aid, not a safety system.
 
 ## Track
 
@@ -46,6 +46,8 @@ Why **Energy & Climate Tech** ("C1 Resilient communities in a changing climate")
 | Live demo (free, no login) | https://umass308xiaofanliu.github.io/glarepilot/ |
 | Live demo trip | https://umass308xiaofanliu.github.io/glarepilot/?preset=chicago-sunset |
 | Recorded snapshot (offline fallback) | https://umass308xiaofanliu.github.io/glarepilot/?snapshot=chicago-sunset |
+| Manual demo scenario (synthetic) | https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift |
+| Manual demo scenario in 3D chase preview | https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d |
 | Demo video (< 3 min, public) | **TODO (human)** — upload [docs/media/glarepilot-demo.mp4](media/glarepilot-demo.mp4) and paste the public YouTube/Vimeo URL |
 
 ## Testing instructions for judges
@@ -58,12 +60,16 @@ No login, no account, no API key and no cost.
    - **Amherst → Chicago**, 8:00 AM — westbound, crosses from Eastern to Central time.
    - **Amherst → New York**, 3:30 PM — afternoon run south-west into the low sun.
 3. Or type your own US origin and destination, set the departure (shown in the origin's time zone, up to 13 days ahead) and press **See my drive**.
-4. If a public service is slow or down, click **Offline? Open a recorded snapshot** (or the button on the error card), or open a `?snapshot=` link: `chicago-sunset`, `boston-sunrise`, `nyc-evening`. Snapshots are labeled "Recorded snapshot" with their capture time (2026-10-24 ~4:12 PM EDT, departures on 2026-10-25).
+4. If a public service is slow or down, click **Offline? Open a recorded snapshot** (or the button on the error card), or open a `?snapshot=` link: `chicago-sunset`, `boston-sunrise`, `nyc-evening`. Snapshots are labeled "Recorded real data — not current" with their retrieval time (2026-10-24 ~4:12 PM EDT, departures on 2026-10-25).
+5. **Traffic delay assumption:** in the form, set Extra time to **+1 h** and Where to **Mid-route**, then press **See my drive**. The card **"What the assumed delay changes"** compares arrival, wet roads, glare, after-dark, crosswind and snow minutes with and without the delay. No traffic data is used — it is your assumption.
+6. **Manual demo scenarios:** click **Manual demo scenarios** at the top of the side panel (or open `?demo=congestion-shift`). Pick one of the four scenarios. The strip says "Manual demo scenario — synthetic data"; weather and delay are hand-set, and only map tiles load. In **Delay shifts the weather**, the assumed 75 min delay pushes the New York arrival into the hand-set rain band and darkness.
+7. **3D chase preview:** above the map, click **3D chase preview** (or open `?demo=sunset-glare&view=3d`). Press **Play**; scroll the mouse wheel, swipe sideways or use the arrow keys to look ahead or behind, then click **Return to playback position**. Use − / + for Close / Near / Far / Wide camera. Switch back to **2D overview** — both views share the selected time. It is a simulated playback of the plan, not GPS.
+8. Click **Animation: on** to turn icon animations off; with the OS "reduce motion" setting they are off by default.
 
 What to look at:
 
-- The KPI strip and the provenance badge ("Live forecast · Valhalla route" or "Recorded snapshot").
-- Map layers **Sun glare / Weather / Daylight** and the legend.
+- The KPI strip and the provenance strip (live: "Real-data plan" with retrieval time and projected departure/arrival; snapshot: "Recorded real data — not current"; scenario: "Manual demo scenario — synthetic data").
+- Map layers **Sun glare / Weather / Daylight**, the legend and the condition icons (placed only where a condition is projected).
 - "Your drive, hour by hour": drag the scrubber and watch the moment card and the **Sun vs. your heading** compass.
 - "What to expect & what to do": click a recommendation to highlight it on the map and timeline; each shows when, where and why.
 - "When should I leave?": bars for −3 h … +3 h; **Try this departure** re-plans with the suggested time.
@@ -74,7 +80,7 @@ Local run and tests: see the [README](../README.md#quick-start) (`npm ci`, `npm 
 
 ## How Kiro was used
 
-**Tools.** GlarePilot was built in **Kiro CLI 2.34.0** (`kiro-cli chat`, the terminal agent) with the model claude-opus-5.5 at xhigh effort. The Kiro session also created the GitHub repository, connected it and pushed code using the GitHub CLI (`gh`), after the human approved the device-flow login. Kiro's native subagents (crew) ran an independent read-only review/test stage and parallel documentation and demo-video stages. The reviewer ran both test suites and reported four major and thirteen minor findings — for example a long severe sunset-glare stretch ranked below a one-minute glare blip, one geocoder label inserted into HTML without escaping, and unknown `?snapshot=` ids silently opening a different trip. The main agent fixed them and added regression tests.
+**Tools.** GlarePilot was built in **Kiro CLI 2.34.0** (`kiro-cli chat`, the terminal agent) with the model claude-opus-5.5 at xhigh effort. The Kiro session also created the GitHub repository, connected it and pushed code using the GitHub CLI (`gh`), after the human approved the device-flow login. Kiro's native subagents (crew) ran an independent read-only review/test stage and parallel documentation and demo-video stages. The reviewer ran both test suites and reported four major and thirteen minor findings — for example a long severe sunset-glare stretch ranked below a one-minute glare blip, one geocoder label inserted into HTML without escaping, and unknown `?snapshot=` ids silently opening a different trip. The main agent fixed them and added regression tests. After the two data modes, the assumed-delay model, condition icons and the 3D chase preview were added, a **second independent Kiro subagent review of the deployed build** found no blockers; its majors were fixed — the "no network requests" wording for demo scenarios was false because OpenStreetMap map tiles still load, the mobile 3D HUD overlapped, and forecast wording appeared in synthetic mode. Parallel subagents were again used for the documentation and the demo video.
 
 **Spec-driven development vs. vibe coding.** The work followed a spec in `.kiro/specs/route-time-weather-glare/`:
 
@@ -109,15 +115,17 @@ Also not used: Kiro IDE and Kiro Web. The `chat.enableWorkflows` and `chat.enabl
 | Public GitHub repo with all source, assets and instructions | https://github.com/Umass308XiaofanLiu/glarepilot, [README](../README.md) | Done |
 | `/.kiro` directory at repo root, not gitignored | `.kiro/steering/`, `.kiro/specs/`; `.gitignore` lists only `node_modules/`, `dist/`, `.env*`, `*.log`, `.DS_Store` | Done |
 | Write-up on how Kiro was used | "How Kiro was used" above | Done (paste into form) |
-| Working project access for judges, free of charge | https://umass308xiaofanliu.github.io/glarepilot/ (no login/keys) + recorded snapshots | Done |
+| Working project access for judges, free of charge | https://umass308xiaofanliu.github.io/glarepilot/ (no login/keys) + recorded snapshots + manual demo scenarios (`?demo=`) | Done |
+| Tests pass | 35 unit (`npm test`) and 13 E2E (`npm run test:e2e`) | Done |
+| Honest data labeling | Two modes labeled; no live/predictive traffic claimed; 3D preview labeled "not GPS" | Done |
 
 ## Remaining human-only items
 
 1. Log in to SundAI and open the Hackachusetts submission form.
 2. Add team members (max 4) — also fill the Team section in the README.
-3. Select the track (recommended: Civic Action, V3).
-4. Upload [docs/media/glarepilot-demo.mp4](media/glarepilot-demo.mp4) (captioned screen recording of the live site, under 3 min, no audio) as **public** to YouTube or Vimeo — or record your own narrated version with [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md) — and check it plays while logged out.
+3. Select the track (recommended: Civic Action, V3; the human decides).
+4. Upload the demo video as **public** to YouTube or Vimeo — [docs/media/glarepilot-demo.mp4](media/glarepilot-demo.mp4) or your own narrated recording following [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md) — and check it plays while logged out.
 5. Paste the repo, live demo and video links, the description and the Kiro write-up into the form; add the video link to the README.
-6. Press **Submit** before 8:00 PM ET and confirm the submission appears.
+6. Press **Submit** before 8:00 PM ET and confirm the submission appears on SundAI.
 7. Optional: choose a project license and add a `LICENSE` file.
 8. Optional: log in to Cloudflare if a Cloudflare Pages mirror is wanted (not required; GitHub Pages is live).

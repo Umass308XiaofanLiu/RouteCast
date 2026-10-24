@@ -263,7 +263,7 @@ const browser = await puppeteer.launch({
   args: ['--no-sandbox', '--disable-gpu', '--hide-scrollbars', '--force-color-profile=srgb', '--lang=en-US'],
 });
 try {
-  // ======== Segment A: desktop walkthrough
+  // ======== Segment A: desktop walkthrough (single 1440x810 page)
   const page = await browser.newPage();
   await page.emulateTimezone('America/New_York');
   await page.evaluateOnNewDocument(POINTER);
@@ -271,177 +271,127 @@ try {
   await page.goto(BASE, { waitUntil: 'networkidle2', timeout: 60000 });
   await sleep(800);
   await startSegment(page, 'a-desktop', { maxWidth: VW, maxHeight: PH });
+  const scene = (name, data) => report.scenes.push({ name, data, at: new Date().toISOString() });
 
-  // 1) Empty state + pitch
+  // 1) Empty state + pitch (~10 s)
   caption('GlarePilot: weather and sun glare where — and when — you’ll actually drive');
-  await sleep(4200);
-  caption('Each place gets the forecast and sun position for the moment you reach it');
-  await moveTo(page, '#empty h3', { pause: 1800 });
-  await sleep(1500);
-  caption('Enter any US trip, or try a demo trip — demo trips use the live forecast for tomorrow');
-  await moveTo(page, '#origin-input', { pause: 900 });
-  await scrollTo(page, '.side', await sideY(page, '.presets-card'), 1600);
-  await moveTo(page, '[data-preset="boston-sunrise"]', { pause: 1200 });
-
-  // 2) Albany -> Boston, eastbound sunrise
-  caption('Albany → Boston, leaving 6:45 AM tomorrow — routing, then one batched forecast request');
-  const boston = await runPreset(page, 'boston-sunrise');
-  await scrollTo(page, '.side', 0, 900);
-  await sleep(1200);
-  caption(`Trip summary${tag(boston)}: drive ${kpi(boston.kpis, 'Drive')}, arrive ${kpi(boston.kpis, 'Arrive')}, sun glare ${kpi(boston.kpis, 'Sun glare')}`);
-  await moveTo(page, '#kpis', { pause: 3500 });
-  const sunrise = await recInfo(page, /sunrise glare/);
-  await scrollTo(page, '.side', await sideY(page, '#advice-card'), 1400);
-  await moveTo(page, '#advice .rec:first-child', { pause: 400 });
-  caption(sunrise ? `Top recommendation: “${sunrise.title}” — where, when, why and what to do` : 'Top recommendation: where, when, why and what to do');
-  await sleep(4200);
-  caption('Sun glare map layer: the route is colored by glare severity when you pass each point');
-  await moveTo(page, '#map', { pause: 3600 });
-  posterAt = globalNow() - 1.0;
-
-  // Timeline scrub through the glare stretch
-  await scrollTo(page, 'window', await docY(page, '.timeline-card'), 1600);
-  caption('Scrub along the trip: forecast, sun height and your heading, minute by minute');
-  const box = await (await page.$('#scrub')).boundingBox();
-  const { v0, max } = await page.$eval('#scrub', (e) => ({ v0: Number(e.value), max: Number(e.max) }));
-  const lo = Math.max(0, v0 - 50);
-  const hi = Math.min(max, v0 + 40);
-  const xOf = (v) => box.x + 8 + ((box.width - 16) * v) / max;
-  const thumbY = box.y + box.height / 2;
-  // Drag the real slider thumb like a user would.
-  await page.mouse.move(xOf(v0) - 160, thumbY + 90);
-  for (let i = 1; i <= 25; i++) {
-    await page.mouse.move(xOf(v0) - 160 + (160 * i) / 25, thumbY + 90 - (90 * i) / 25);
-    await sleep(16);
-  }
-  await page.mouse.down();
-  const drag = async (a, b, ms) => {
-    const n = Math.max(1, Math.round(ms / 40));
-    for (let i = 1; i <= n; i++) {
-      await page.mouse.move(xOf(a + ((b - a) * i) / n), thumbY);
-      await sleep(40);
-    }
-  };
-  await drag(v0, lo, 2600);
-  await drag(lo, hi, 5200);
-  await drag(hi, v0, 2400);
-  await page.mouse.up();
-  mousePos.set(page, { x: xOf(v0), y: thumbY });
-  // Make sure the selection matches the worst-glare sample (thumb rounding).
-  await page.$eval('#scrub', (e, v) => { e.value = String(v); e.dispatchEvent(new Event('input', { bubbles: true })); }, v0);
-  await scrollTo(page, 'window', await docY(page, '.detail-grid', 120), 1200);
-  const verdict = await page.$eval('#compass', (e) => (e.querySelector('strong')?.textContent || '').trim()).catch(() => '');
-  caption(`Sun vs. heading: shaded wedge = windshield glare zone${verdict ? ` — here: ${verdict}` : ''}`);
-  await moveTo(page, '#compass', { pause: 4200 });
-
-  // 3) Amherst -> Chicago, westbound sunset
-  await scrollTo(page, 'window', 0, 1300);
+  await sleep(4000);
+  caption('Two modes: Real-data planning (live route + forecast) and Manual demo scenarios');
+  await moveTo(page, '.mode-switch', { pause: 2600 });
   await scrollTo(page, '.side', await sideY(page, '.presets-card'), 1300);
-  caption('Amherst → Chicago, leaving 8:00 AM tomorrow — a full day westbound into the sunset');
-  await moveTo(page, '[data-preset="chicago-sunset"]', { pause: 800 });
+
+  // 2) Real forecast planning (~40 s)
+  caption('Real-data planning: Amherst → Chicago, leaving 8:00 AM tomorrow');
   const chicago = await runPreset(page, 'chicago-sunset');
-  await scrollTo(page, '.side', 0, 900);
-  await sleep(600);
-  caption(`Trip summary${tag(chicago)}: ${kpi(chicago.kpis, 'Drive')} drive — arrival shown in Chicago time: ${kpi(chicago.kpis, 'Arrive')}`);
-  await moveTo(page, '#kpis', { pause: 3800 });
-  caption('Map layers: Sun glare…');
-  await clickOn(page, '[data-layer="glare"]', { pause: 300 });
-  await sleep(2400);
-  caption('…Weather: forecast rain, snow, fog and wind at your arrival time…');
-  await clickOn(page, '[data-layer="weather"]', { pause: 300 });
-  await waitTiles(page, 3000);
-  await sleep(3000);
-  caption('…Daylight: day, low sun, twilight and night along the drive');
-  await clickOn(page, '[data-layer="light"]', { pause: 300 });
-  await sleep(3000);
-  await clickOn(page, '[data-layer="glare"]', { pause: 300 });
-  const sunset = await recInfo(page, /sunset glare/);
-  if (sunset) {
-    await scrollTo(page, '.side', await sideY(page, `#advice .rec:nth-child(${sunset.index + 1})`), 1500);
-    caption(`Recommendation: “${sunset.title}” — click to highlight it on the map and timeline`);
-    await clickOn(page, `#advice .rec:nth-child(${sunset.index + 1})`, { pause: 300 });
-    await sleep(4200);
-  }
-  await scrollTo(page, 'window', await docY(page, '.optimizer-card', 160), 1700);
-  caption('“When should I leave?” — same route, departures −3 h…+3 h, transparent exposure score');
-  await moveTo(page, '.opt-bar.current', { pause: 3600 });
-  const best = (await page.$('.opt-bar.best')) ? '.opt-bar.best' : null;
-  if (best) {
-    caption('Lower bars = less glare, wet, wind and after-dark exposure; the best option is marked');
-    await moveTo(page, best, { pause: 3000 });
+  await scrollTo(page, '.side', 0, 800);
+  await scrollTo(page, 'window', 0, 400);
+  const prov = await txt(page, '#prov');
+  report.realProv = prov;
+  scene('real-chicago', chicago.mode);
+  log('prov:', prov);
+  if (chicago.mode === 'snapshot') {
+    caption('Recorded snapshot of a real route + forecast (live request failed) — each point at its projected arrival time');
   } else {
-    await sleep(3000);
+    caption('Live route + forecast retrieved now — each point evaluated at its projected arrival time');
   }
-  const apply = await page.$('[data-apply]');
-  if (apply) {
-    const applyTitle = await page.$eval('[data-apply]', (b) => b.closest('.rec').innerText.split('\n')[0].trim());
-    const beforeDark = kpi(await txt(page, '#kpis'), 'After dark');
-    await scrollTo(page, '.side', await sideY(page, '[data-apply]', 260), 1500);
-    caption(`Suggestion: “${applyTitle}” → Try this departure`);
-    await moveTo(page, '[data-apply]', { pause: 1600 });
-    await clickOn(page, '[data-apply]', { pause: 200 });
-    await sleep(1600);
-    await scrollTo(page, 'window', 0, 600);
-    const after = await txt(page, '#kpis');
-    report.applied = { title: applyTitle, beforeAfterDark: beforeDark, afterAfterDark: kpi(after, 'After dark'), kpisAfter: after };
-    caption(`Re-evaluated instantly — after dark: ${beforeDark} → ${kpi(after, 'After dark')}; arrive ${kpi(after, 'Arrive')}`);
-    await moveTo(page, '#kpis', { pause: 4200 });
-  }
-
-  // Checkpoint table
-  await scrollTo(page, 'window', await docY(page, '.table-card', 20), 1600);
-  caption('Forecast checkpoints: local arrival time, weather and sun at each place on the route');
-  await clickOn(page, '.table-card summary', { pause: 300 });
-  await sleep(1200);
-  await scrollTo(page, 'window', (await docY(page, '.table-card', 20)) + 260, 1800);
-  await sleep(1800);
-
-  // 4) Units
-  await scrollTo(page, 'window', 0, 1500);
-  caption('Units: one click switches between °F · mi and °C · km');
-  await clickOn(page, '[data-units="metric"]', { pause: 300 });
-  await sleep(3400);
-  await clickOn(page, '[data-units="us"]', { pause: 300 });
-  await sleep(1200);
-  await endSegment();
-
-  // ======== Segment B: phone layout
-  const phone = await browser.newPage();
-  await phone.emulateTimezone('America/New_York');
-  await phone.evaluateOnNewDocument(POINTER);
-  await phone.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  await phone.goto(BASE, { waitUntil: 'networkidle2', timeout: 60000 });
-  await sleep(600);
-  await phone.bringToFront();
-  await startSegment(phone, 'b-phone', { maxWidth: 780, maxHeight: 1688 });
-  caption('Phone layout (390 × 844): the same planner, stacked for small screens');
-  await sleep(1800);
-  await scrollTo(phone, 'window', await docY(phone, '.presets-card'), 1800);
-  await moveTo(phone, '[data-preset="chicago-sunset"]', { pause: 600 });
-  const phoneRun = await runPreset(phone, 'chicago-sunset', { mobile: true });
-  await sleep(1600);
-  caption(`Amherst → Chicago on a phone${tag(phoneRun)}: summary, map, timeline and advice`);
-  await scrollTo(phone, 'window', await docY(phone, '#kpis'), 900);
-  await sleep(2600);
-  await scrollTo(phone, 'window', await docY(phone, '.map-card'), 1800);
-  await sleep(2200);
-  await scrollTo(phone, 'window', await docY(phone, '.timeline-card'), 1800);
-  await sleep(2200);
-  await scrollTo(phone, 'window', await docY(phone, '.compass-card'), 1600);
-  await sleep(2000);
-  await scrollTo(phone, 'window', await docY(phone, '.optimizer-card'), 1600);
-  await sleep(2000);
-  await endSegment();
-  await phone.close();
-
-  // ======== Segment C: closing
-  await page.bringToFront();
-  await scrollTo(page, 'window', 0, 10);
-  await scrollTo(page, '.side', 0, 10);
-  await page.mouse.move(-50, -50);
+  await moveTo(page, '#prov', { pause: 4200 });
+  caption(`Trip summary${tag(chicago)}: ${kpi(chicago.kpis, 'Drive')} drive, arrive ${kpi(chicago.kpis, 'Arrive')}`);
+  await moveTo(page, '#kpis', { pause: 3600 });
+  caption('Map: route colored by sun glare, with condition icons at forecast trouble spots');
+  await scrollTo(page, 'window', await docY(page, '.map-card'), 1400);
+  await moveTo(page, '#map', { pause: 2600 });
+  await moveTo(page, '#cond-legend', { pause: 2200 });
+  posterAt = globalNow() - 1.0;
+  // Traffic delay assumption
+  await scrollTo(page, 'window', 0, 1000);
+  await scrollTo(page, '.side', await sideY(page, '#delay-min', 120), 1200);
+  await moveTo(page, '#delay-min', { pause: 600 });
+  await page.select('#delay-min', '60');
+  await page.waitForSelector('#delay-card:not([hidden])', { timeout: 30000 }).catch(() => {});
   await sleep(500);
+  report.realDelayCard = await txt(page, '#delay-card');
+  caption('Assumed +1 h delay — your assumption, not traffic data — every later point re-timed');
+  await moveTo(page, '#delay-card', { pause: 5200 });
+
+  // 3) Optimizer glimpse (~15 s)
+  await page.$eval('.optimizer-card', (e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  await sleep(1600);
+  caption('“When should I leave?” — same route, departures −3 h…+3 h, transparent exposure score');
+  await moveTo(page, '.opt-bar.current', { pause: 3200 });
+  if (await page.$('.opt-bar.best')) {
+    caption('Lower bars = less glare, wet, wind and after-dark exposure; the best option is marked');
+    await moveTo(page, '.opt-bar.best', { pause: 3000 });
+  }
+  await scrollTo(page, 'window', 0, 1000);
+
+  // 4) Manual demo scenarios (~60 s)
+  caption('Manual demo scenarios — hand-set synthetic data, no weather/route API calls');
+  await scrollTo(page, '.side', 0, 800);
+  await clickOn(page, '[data-mode="demo"]', { pause: 300 });
+  await sleep(2600);
+  const openScn = async (id) => {
+    await clickOn(page, `[data-scenario="${id}"]`, { pause: 300 });
+    await page.waitForSelector('#result:not([hidden])', { timeout: 30000 });
+    await waitTiles(page, 5000);
+    await sleep(600);
+    scene(id, 'synthetic');
+    report.scenes[report.scenes.length - 1].prov = await txt(page, '#prov');
+  };
+  await openScn('congestion-shift');
+  caption('“Delay shifts the weather” (synthetic): an assumed 75 min delay pushes arrival into rain and dark');
+  await scrollTo(page, 'window', 0, 400);
+  if (await page.$('#delay-card:not([hidden])')) await moveTo(page, '#delay-card', { pause: 3600 });
+  else await sleep(3600);
+  await scrollTo(page, 'window', await docY(page, '.map-card'), 1200);
+  await moveTo(page, '#map', { pause: 2600 });
+  await scrollTo(page, 'window', 0, 900);
+  await scrollTo(page, '.side', await sideY(page, '#scenario-card'), 600);
+  await openScn('storm-crosswind');
+  caption('“Heavy rain + crosswind” (synthetic): rain and wind icons where the hand-set squall hits the route');
+  await scrollTo(page, 'window', await docY(page, '.map-card'), 1200);
+  await moveTo(page, '#map', { pause: 3400 });
+  await moveTo(page, '#cond-legend', { pause: 1800 });
+  await scrollTo(page, 'window', 0, 900);
+  await scrollTo(page, '.side', await sideY(page, '#scenario-card'), 600);
+  await openScn('sunset-glare');
+  caption('“Westbound sunset glare” (synthetic) — now the 3D chase preview');
+  await scrollTo(page, 'window', await docY(page, '.map-card'), 1200);
+  await clickOn(page, '[data-view="3d"]', { pause: 300 });
+  await sleep(3000);
+  caption('3D chase preview — simulated playback of the planned route, not GPS');
+  await moveTo(page, '#chase canvas', { pause: 800 });
+  for (let i = 0; i < 6; i++) {
+    await page.mouse.wheel({ deltaY: 240 });
+    await sleep(500);
+  }
+  await sleep(800);
+  report.hudAfterWheel = await txt(page, '[data-hud="state"]');
+  caption(`Scroll to look ahead along the route${/preview/i.test(report.hudAfterWheel) ? ` — HUD: “${report.hudAfterWheel.split('\n')[0]}”` : ''}`);
+  await sleep(3200);
+  if (await page.$('[data-act="return"]:not([disabled])')) {
+    await clickOn(page, '[data-act="return"]', { pause: 300 });
+    await sleep(1500);
+  }
+  caption('Play: simulated drive along the planned route (not GPS)');
+  await clickOn(page, '[data-act="play"]', { pause: 300 });
+  await sleep(5200);
+  await clickOn(page, '[data-act="play"]', { pause: 300 });
+  await sleep(1200);
+
+  // 5) Reduced motion (~8 s)
+  caption('Animation toggle: turn motion off for a calmer, reduced-motion view');
+  await clickOn(page, '#motion', { pause: 300 });
+  await sleep(600);
+  report.motionLabel = await txt(page, '#motion');
+  await sleep(5200);
+  await endSegment();
+
+  // ======== Segment B: closing
+  await scrollTo(page, 'window', 0, 10);
+  await page.mouse.move(-50, -50);
+  await sleep(400);
   await startSegment(page, 'c-closing', { maxWidth: VW, maxHeight: PH });
-  caption('Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position', 'Planning aid, not a safety system. Built with Kiro.');
+  caption('Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position', 'Manual demos use hand-set synthetic data. Planning aid, not a safety system. Built with Kiro.');
   await sleep(4500);
   await scrollTo(page, 'window', 99999, 2600);
   await sleep(2600);

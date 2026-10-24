@@ -1,176 +1,146 @@
 {
-  "capturedAt": "2026-10-24T21:09:07.972Z",
+  "capturedAt": "2026-10-24T22:51:02.183Z",
   "baseUrl": "https://umass308xiaofanliu.github.io/glarepilot/",
   "scenes": [
     {
-      "id": "boston-sunrise",
-      "mobile": false,
-      "mode": "live",
-      "provenance": "Live forecast · Valhalla route",
-      "kpis": "DRIVE\n2h 49m\n170 mi · no stops\nARRIVE\n9:34 AM EDT\nSun, Oct 25 · Boston, MA\nSUN GLARE\n35 min\nstrong/severe · 56 min sun in view\nAFTER DARK\n6m\n4% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 47°F\ncrosswind gusts to 8 mph",
-      "at": "2026-10-24T21:09:25.864Z"
-    },
-    {
       "id": "chicago-sunset",
       "mobile": false,
       "mode": "live",
       "provenance": "Live forecast · Valhalla route",
-      "kpis": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n9:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\nSoftened\nby clouds · 18 min low sun ahead\nAFTER DARK\n3h 14m\n22% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 68°F\ncrosswind gusts to 14 mph",
-      "at": "2026-10-24T21:10:11.696Z"
+      "kpis": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n9:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\nSoftened\nby clouds · 18 min low sun ahead\nAFTER DARK\n3h 14m\n22% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n36°F – 68°F\ncrosswind gusts to 14 mph",
+      "at": "2026-10-24T22:51:15.607Z"
     },
     {
-      "id": "chicago-sunset",
-      "mobile": true,
-      "mode": "live",
-      "provenance": "Live forecast · Valhalla route",
-      "kpis": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n9:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\nSoftened\nby clouds · 18 min low sun ahead\nAFTER DARK\n3h 14m\n22% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n34°F – 68°F\ncrosswind gusts to 14 mph",
-      "at": "2026-10-24T21:11:26.271Z"
+      "name": "real-chicago",
+      "data": "live",
+      "at": "2026-10-24T22:51:17.170Z"
+    },
+    {
+      "name": "congestion-shift",
+      "data": "synthetic",
+      "at": "2026-10-24T22:52:03.160Z",
+      "prov": "Manual demo scenario — synthetic data. “Delay shifts the weather”: Hand-set: dry and sunny until 6:15 PM, then a rain band with gusts reaches the New York end. An assumed 75 min mid-route delay pushes arrival into the rain and darkness. Weather and the traffic delay are hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real Valhalla route captured Sat 4:12 PM EDT, Oct 24. Each point uses conditions at its projected arrival time: departure Sun 3:30 PM EDT + routed drive time plus your assumed 1 h 15 min delay mid-route.\nWhat is forecast, computed, estimated or assumed?"
+    },
+    {
+      "name": "storm-crosswind",
+      "data": "synthetic",
+      "at": "2026-10-24T22:52:16.873Z",
+      "prov": "Manual demo scenario — synthetic data. “Heavy rain + crosswind”: A hand-set squall line with heavy rain and 85 km/h westerly gusts across the middle of the drive; vehicle set to van/truck. Weather is hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real Valhalla route captured Sat 4:12 PM EDT, Oct 24. Each point uses conditions at its projected arrival time: departure Sun 1:00 PM EDT + routed drive time.\nWhat is forecast, computed, estimated or assumed?"
+    },
+    {
+      "name": "sunset-glare",
+      "data": "synthetic",
+      "at": "2026-10-24T22:52:29.106Z",
+      "prov": "Manual demo scenario — synthetic data. “Westbound sunset glare”: Hand-set clear skies everywhere, so the low sun straight ahead near Lake Erie is not softened by clouds. Weather is hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real Valhalla route captured Sat 4:12 PM EDT, Oct 24. Each point uses conditions at its projected arrival time: departure Sun 8:00 AM EDT + routed drive time.\nWhat is forecast, computed, estimated or assumed?"
     }
   ],
-  "applied": {
-    "title": "Leave 1 h earlier: Sun 7:00 AM EDT",
-    "beforeAfterDark": "3h 14m",
-    "afterAfterDark": "2h 9m",
-    "kpisAfter": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n8:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\n1 min\nstrong/severe · 79 min sun in view\nAFTER DARK\n2h 9m\n15% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n35°F – 69°F\ncrosswind gusts to 12 mph"
-  },
-  "durationSeconds": 165.72,
+  "realProv": "Real-data plan. Valhalla route and Open-Meteo forecast retrieved Sat 6:51 PM EDT, Oct 24. Trip departs Sun 8:00 AM EDT and arrives Sun 9:24 PM CDT. Each point uses conditions at its projected arrival time: departure Sun 8:00 AM EDT + routed drive time.\nWhat is forecast, computed, estimated or assumed?",
+  "realDelayCard": "What the assumed delay changes\nYour assumption — not measured or predicted traffic\n\n+1 h mid-route. Every point after the slow stretch is reached later, so 17 of 34 forecast checkpoints move to a different forecast hour and the sun angles are recomputed.\n\nARRIVAL\n9:24 PM CDT → 10:24 PM CDT\nWET ROADS\n0 → 0 min\nSTRONG GLARE\n1 → 1 min\nAFTER DARK\n194 → 259 min\nSTRONG CROSSWIND\n0 → 0 min\nSNOW / ICE\n0 → 0 min",
+  "hudAfterWheel": "Previewing ahead: +14 min · 15 mi",
+  "motionLabel": "Animation: off",
+  "durationSeconds": 128.77,
   "segments": [
     {
       "name": "a-desktop",
-      "seconds": 126.66,
-      "frames": 1874
-    },
-    {
-      "name": "b-phone",
-      "seconds": 28.86,
-      "frames": 607
+      "seconds": 118.57,
+      "frames": 4341
     },
     {
       "name": "c-closing",
       "seconds": 10.2,
-      "frames": 120
+      "frames": 133
     }
   ],
   "captions": [
     {
-      "start": 0.31,
-      "end": 4.51,
+      "start": 0.32,
+      "end": 4.32,
       "text": "GlarePilot: weather and sun glare where — and when — you’ll actually drive"
     },
     {
-      "start": 4.52,
-      "end": 8.41,
-      "text": "Each place gets the forecast and sun position for the moment you reach it"
+      "start": 4.32,
+      "end": 8.94,
+      "text": "Two modes: Real-data planning (live route + forecast) and Manual demo scenarios"
     },
     {
-      "start": 8.41,
-      "end": 13.67,
-      "text": "Enter any US trip, or try a demo trip — demo trips use the live forecast for tomorrow"
+      "start": 8.94,
+      "end": 12.74,
+      "text": "Real-data planning: Amherst → Chicago, leaving 8:00 AM tomorrow"
     },
     {
-      "start": 13.67,
-      "end": 17.89,
-      "text": "Albany → Boston, leaving 6:45 AM tomorrow — routing, then one batched forecast request"
+      "start": 12.74,
+      "end": 17.85,
+      "text": "Live route + forecast retrieved now — each point evaluated at its projected arrival time"
     },
     {
-      "start": 17.89,
-      "end": 24.96,
-      "text": "Trip summary (live data): drive 2h 49m, arrive 9:34 AM EDT, sun glare 35 min"
+      "start": 17.85,
+      "end": 22.38,
+      "text": "Trip summary (live data): 14h 24m drive, arrive 9:24 PM CDT"
     },
     {
-      "start": 24.96,
-      "end": 29.17,
-      "text": "Top recommendation: “ESE-bound sunrise glare 11 mi from Pittsfield, MA” — where, when, why and what to do"
+      "start": 22.38,
+      "end": 35.26,
+      "text": "Map: route colored by sun glare, with condition icons at forecast trouble spots"
     },
     {
-      "start": 29.17,
-      "end": 35.4,
-      "text": "Sun glare map layer: the route is colored by glare severity when you pass each point"
+      "start": 35.26,
+      "end": 42.8,
+      "text": "Assumed +1 h delay — your assumption, not traffic data — every later point re-timed"
     },
     {
-      "start": 35.4,
-      "end": 50.14,
-      "text": "Scrub along the trip: forecast, sun height and your heading, minute by minute"
-    },
-    {
-      "start": 50.14,
-      "end": 57.84,
-      "text": "Sun vs. heading: shaded wedge = windshield glare zone — here: Severe glare"
-    },
-    {
-      "start": 57.84,
-      "end": 63.12,
-      "text": "Amherst → Chicago, leaving 8:00 AM tomorrow — a full day westbound into the sunset"
-    },
-    {
-      "start": 63.12,
-      "end": 67.68,
-      "text": "Trip summary (live data): 14h 24m drive — arrival shown in Chicago time: 9:24 PM CDT"
-    },
-    {
-      "start": 67.68,
-      "end": 71.33,
-      "text": "Map layers: Sun glare…"
-    },
-    {
-      "start": 71.33,
-      "end": 75.61,
-      "text": "…Weather: forecast rain, snow, fog and wind at your arrival time…"
-    },
-    {
-      "start": 75.61,
-      "end": 82.85,
-      "text": "…Daylight: day, low sun, twilight and night along the drive"
-    },
-    {
-      "start": 82.85,
-      "end": 90.16,
-      "text": "Recommendation: “WSW-bound sunset glare 13 mi from Lorain, OH” — click to highlight it on the map and timeline"
-    },
-    {
-      "start": 90.16,
-      "end": 94.42,
+      "start": 42.8,
+      "end": 46.93,
       "text": "“When should I leave?” — same route, departures −3 h…+3 h, transparent exposure score"
     },
     {
-      "start": 94.42,
-      "end": 99.81,
+      "start": 46.93,
+      "end": 52.05,
       "text": "Lower bars = less glare, wet, wind and after-dark exposure; the best option is marked"
     },
     {
-      "start": 99.81,
-      "end": 105.42,
-      "text": "Suggestion: “Leave 1 h earlier: Sun 7:00 AM EDT” → Try this departure"
+      "start": 52.05,
+      "end": 58.75,
+      "text": "Manual demo scenarios — hand-set synthetic data, no weather/route API calls"
     },
     {
-      "start": 105.42,
-      "end": 112.21,
-      "text": "Re-evaluated instantly — after dark: 3h 14m → 2h 9m; arrive 8:24 PM CDT"
+      "start": 58.75,
+      "end": 72.45,
+      "text": "“Delay shifts the weather” (synthetic): an assumed 75 min delay pushes arrival into rain and dark"
     },
     {
-      "start": 112.21,
-      "end": 119.81,
-      "text": "Forecast checkpoints: local arrival time, weather and sun at each place on the route"
+      "start": 72.45,
+      "end": 84.68,
+      "text": "“Heavy rain + crosswind” (synthetic): rain and wind icons where the hand-set squall hits the route"
     },
     {
-      "start": 119.81,
-      "end": 126.66,
-      "text": "Units: one click switches between °F · mi and °C · km"
+      "start": 84.68,
+      "end": 90.42,
+      "text": "“Westbound sunset glare” (synthetic) — now the 3D chase preview"
     },
     {
-      "start": 126.97,
-      "end": 135.99,
-      "text": "Phone layout (390 × 844): the same planner, stacked for small screens"
+      "start": 90.42,
+      "end": 96.24,
+      "text": "3D chase preview — simulated playback of the planned route, not GPS"
     },
     {
-      "start": 135.99,
-      "end": 155.52,
-      "text": "Amherst → Chicago on a phone (live data): summary, map, timeline and advice"
+      "start": 96.24,
+      "end": 102.33,
+      "text": "Scroll to look ahead along the route — HUD: “Previewing ahead: +14 min · 15 mi”"
     },
     {
-      "start": 155.86,
-      "end": 165.72,
-      "text": "Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position Planning aid, not a safety system. Built with Kiro."
+      "start": 102.33,
+      "end": 111.4,
+      "text": "Play: simulated drive along the planned route (not GPS)"
+    },
+    {
+      "start": 111.4,
+      "end": 118.57,
+      "text": "Animation toggle: turn motion off for a calmer, reduced-motion view"
+    },
+    {
+      "start": 118.9,
+      "end": 128.77,
+      "text": "Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position Manual demos use hand-set synthetic data. Planning aid, not a safety system. Built with Kiro."
     }
   ]
 }

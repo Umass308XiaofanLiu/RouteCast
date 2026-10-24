@@ -4,3 +4,6 @@ dist/
 .env.local
 *.log
 .DS_Store
+
+# Large media is published as GitHub release assets, not committed
+docs/media/*.mp4

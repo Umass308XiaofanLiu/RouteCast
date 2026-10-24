@@ -486,7 +486,7 @@ export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion 
     const row = ev.rows[i];
     const tz = row.timezone || model.originTz;
     const smp = model.samples[i];
-    hud.where.textContent = `${formatClock(row.t, tz)} · ${formatDuration((row.t - ev.departureUtc) / 1000)} into the trip · heading ${compass(smp.heading)}`;
+    hud.where.textContent = root.clientWidth < 520 ? `${formatClock(row.t, tz, { weekday: false })} · +${formatDuration((row.t - ev.departureUtc) / 1000, { compact: true })} · ${compass(smp.heading)}` : `${formatClock(row.t, tz)} · ${formatDuration((row.t - ev.departureUtc) / 1000)} into the trip · heading ${compass(smp.heading)}`;
     const off = Math.round(displayIdx()) - Math.round(cur);
     if (off === 0) {
       hud.state.textContent = playing ? 'Playing back the planned route' : 'At playback position';
@@ -504,10 +504,10 @@ export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion 
       for (const c of rowConditions(ev.rows[j])) {
         if (seen.has(c)) continue;
         seen.add(c);
-        ahead.push(`${COND_LABEL[c]}${c === 'jam' ? ' (assumed)' : ''} in ${fmt.dist(model.samples[j].distM - smp.distM)}`);
+        ahead.push(`${COND_LABEL[c]} in ${fmt.dist(model.samples[j].distM - smp.distM)}`);
       }
     }
-    const now = conds.length ? `Here: ${conds.map((c) => COND_LABEL[c] + (c === 'jam' ? ' (assumed)' : '')).join(', ')}` : 'Here: no flagged conditions';
+    const now = conds.length ? `Here: ${conds.map((c) => COND_LABEL[c]).join(', ')}` : 'Here: no flagged conditions';
     hud.ahead.textContent = `${now}${ahead.length ? ` · Next: ${ahead.join(' · ')}` : ''}`;
     hud.level.textContent = LEVELS[level].name;
   }

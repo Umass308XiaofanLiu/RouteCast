@@ -63,7 +63,7 @@ export function createTimeline(el, { onPick }) {
     const x1 = (i) => xOf(edges[i + 1]);
     let y = TOP;
     const parts = [];
-    const rowsDef = ev.delay?.extraSec ? [...ROWS, { key: 'jam', label: 'Assumed delay', h: 10 }] : ROWS;
+    const rowsDef = ev.delay?.extraSec ? [...ROWS, { key: 'jam', label: 'Delay (set)', h: 10 }] : ROWS;
     const totalH = TOP + rowsDef.reduce((a, r) => a + r.h + GAP, 0) + 14;
 
     // Highlighted range (from a selected recommendation).

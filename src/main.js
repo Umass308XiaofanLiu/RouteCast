@@ -212,7 +212,7 @@ function evaluate(departureUtc, { fit = false } = {}) {
   state.ev = state.opt.base;
   state.baseline = opts.delay?.minutes ? evaluateTrip(m, departureUtc, { ...opts, delay: null }) : null;
   state.glareWindows = state.ev.windows.glare.map((w) => describeGlareWindow(m, state.ev, w)).filter((d) => d.peakSeverity >= 2 || d.minutes >= 4);
-  state.recs = buildAdvice(m, state.ev, { vehicle, optimizer: state.opt, unitsFmt: fmt });
+  state.recs = buildAdvice(m, state.ev, { vehicle, optimizer: state.opt, unitsFmt: fmt, synthetic: m.source.kind === 'synthetic' });
   state.activeRec = null;
   // Start the cursor at the most important glare moment, else at departure.
   const firstRec = state.recs.find((r) => r.focus != null);
@@ -272,7 +272,7 @@ function provHtml() {
       <li><strong>Arrival times</strong>: estimated from ${esc(m.route.engine)} free-flow routing${dly ? ' plus your delay assumption' : ''}; no live or predicted traffic is used.</li>
       <li><strong>Observed / live data</strong>: none. GlarePilot does not show current conditions and does not track your location.</li></ul></details>`;
   if (m.source.kind === 'synthetic') {
-    return { cls: 'synthetic', html: `<strong>Manual demo scenario — synthetic data.</strong> “${esc(m.source.title)}”: ${esc(m.source.story)} Weather${state.ev.delay?.minutes ? ' and the traffic delay are' : ' is'} hand-set on purpose; no network requests. Route geometry and routed times come from a recorded real ${esc(m.route.engine)} route captured ${esc(ny(m.source.routeCapturedAt))}. ${timing}${what}` };
+    return { cls: 'synthetic', html: `<strong>Manual demo scenario — synthetic data.</strong> “${esc(m.source.title)}”: ${esc(m.source.story)} Weather${state.ev.delay?.minutes ? ' and the traffic delay are' : ' is'} hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real ${esc(m.route.engine)} route captured ${esc(ny(m.source.routeCapturedAt))}. ${timing}${what}` };
   }
   if (m.source.kind === 'snapshot') {
     return { cls: 'snapshot', html: `<strong>Recorded real data — not current.</strong> ${esc(m.route.engine)} route and Open-Meteo forecast retrieved ${esc(ny(m.source.capturedAt))}. ${timing}${what}` };
@@ -330,7 +330,7 @@ function renderKpis() {
         : t.glareMin[2] + t.glareMin[3] >= 1 ? `by clouds · ${Math.round(t.glareMin[2] + t.glareMin[3])} min low sun ahead` : `${Math.round(glareGeo)} min sun in view`
     ),
     kpi('night', 'After dark', ev.totals.nightMin >= 1 ? formatDuration(ev.totals.nightMin * 60, { compact: true }) : 'None', `${Math.round((ev.totals.nightMin / (ev.driveSec / 60)) * 100)}% of the drive`),
-    kpi('wet', 'Wet / snowy', t.wetMin >= 1 ? formatDuration(t.wetMin * 60, { compact: true }) : 'Dry', t.snowMin >= 1 ? `${Math.round(t.snowMin)} min snow/ice` : t.missingMin > 1 ? `${Math.round(t.missingMin)} min no forecast` : 'forecast precipitation'),
+    kpi('wet', 'Wet / snowy', t.wetMin >= 1 ? formatDuration(t.wetMin * 60, { compact: true }) : 'Dry', t.snowMin >= 1 ? `${Math.round(t.snowMin)} min snow/ice` : t.missingMin > 1 ? `${Math.round(t.missingMin)} min no forecast` : model.source.kind === 'synthetic' ? 'scenario precipitation' : 'forecast precipitation'),
     kpi('temp', 'Temperature', ev.minTemp == null ? '—' : `${fmt.temp(ev.minTemp)} – ${fmt.temp(ev.maxTemp)}`, ev.maxCrossMph ? `crosswind gusts to ${fmt.speedMph(ev.maxCrossMph)}` : ''),
   ].join('');
 }
@@ -512,7 +512,7 @@ document.querySelectorAll('[data-units]').forEach((b) =>
     fmt = makeFormatter(state.units);
     document.querySelectorAll('[data-units]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     if (state.model) {
-      state.recs = buildAdvice(state.model, state.ev, { vehicle: tripOpts().vehicle, optimizer: state.opt, unitsFmt: fmt });
+      state.recs = buildAdvice(state.model, state.ev, { vehicle: tripOpts().vehicle, optimizer: state.opt, unitsFmt: fmt, synthetic: state.model.source.kind === 'synthetic' });
       renderKpis();
       renderDelayCard();
       renderAdvice();
@@ -550,7 +550,7 @@ function renderDelayCard() {
   const synthetic = m.source.kind === 'synthetic';
   card.hidden = false;
   card.innerHTML = `<div class="card-head"><h3 class="card-title">What the assumed delay changes</h3><span class="fineprint">${synthetic ? 'Scenario delay (hand-set)' : 'Your assumption'} — not measured or predicted traffic</span></div>
-    <p class="fineprint" style="margin-top:0">+${formatDuration(ev.delay.extraSec)} ${esc(ev.delay.label)}. Every point after the slow stretch is reached later, so ${hourShift} of ${m.pointIdx.length} forecast checkpoints move to a different forecast hour and the sun angles are recomputed.</p>
+    <p class="fineprint" style="margin-top:0">+${formatDuration(ev.delay.extraSec)} ${esc(ev.delay.label)}. Every point after the slow stretch is reached later, so ${hourShift} of ${m.pointIdx.length} ${synthetic ? 'checkpoints read a different (hand-set) hour' : 'forecast checkpoints move to a different forecast hour'} and the sun angles are recomputed.</p>
     <dl class="delay-grid">
       <div><dt>Arrival</dt><dd class="worse">${esc(formatClock(base.arrivalUtc, m.destTz, { weekday: false }))} → ${esc(formatClock(ev.arrivalUtc, m.destTz, { weekday: false }))}</dd></div>
       ${cell('Wet roads', base.totals.wetMin, ev.totals.wetMin)}

@@ -34,9 +34,11 @@ function glareActions(sev, vehicle, kind) {
 }
 
 /** Build prioritized recommendations from a trip evaluation (and optional optimizer result). */
-export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unitsFmt } = {}) {
+export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unitsFmt, synthetic = false } = {}) {
   const recs = [];
   const fmt = unitsFmt;
+  const SRC = synthetic ? 'Scenario (hand-set)' : 'Forecast';
+  const src = synthetic ? 'scenario (hand-set)' : 'forecast';
 
   // 1. Sun glare windows.
   for (const w of ev.windows.glare) {
@@ -48,7 +50,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
     const expectedLabel = ['no', 'mild', 'strong', 'severe'][d.peakExpected];
     const geomLabel = ['no', 'mild', 'strong', 'severe'][d.peakSeverity];
     const muted = d.peakExpected < d.peakSeverity;
-    const cloudTxt = d.avgCloud == null ? 'cloud cover not in forecast' : `forecast cloud cover ~${Math.round(d.avgCloud)}%`;
+    const cloudTxt = d.avgCloud == null ? `cloud cover not in ${src}` : `${src} cloud cover ~${Math.round(d.avgCloud)}%`;
     recs.push({
       id: `glare-${w[0]}`,
       kind: 'glare',
@@ -103,7 +105,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
       title: r.hz.ice ? 'Freezing precipitation / ice risk' : 'Snow on the route',
       when: `${s.when} (${formatDuration(s.minutes * 60)})`,
       where: `${s.where} → ${s.whereEnd}`,
-      why: `Forecast: ${describeCode(r.wx?.weatherCode)}, up to ${fmt.snow(maxSnow)}/h snowfall, temperature down to ${fmt.temp(minT)}.`,
+      why: `${SRC}: ${describeCode(r.wx?.weatherCode)}, up to ${fmt.snow(maxSnow)}/h snowfall, temperature down to ${fmt.temp(minT)}.`,
       actions: ['Slow down and double your following distance.', 'Bridges and overpasses freeze first.', 'Check state DOT road conditions (511) before this stretch; consider delaying.'],
       focus: w[0],
       range: w,
@@ -134,7 +136,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
       title: heavy ? 'Heavy rain on the route' : 'Rain on the route',
       when: `${s.when} (${formatDuration(s.minutes * 60)})`,
       where: `${s.where} → ${s.whereEnd}`,
-      why: `Forecast up to ${fmt.precip(maxP)}/h${maxProb ? `, ${Math.round(maxProb)}% chance` : ''}.`,
+      why: `${SRC} up to ${fmt.precip(maxP)}/h${maxProb ? `, ${Math.round(maxProb)}% chance` : ''}.`,
       actions: heavy
         ? ['Slow down to reduce hydroplaning risk; avoid cruise control on wet roads.', 'Turn on headlights.']
         : ['Headlights on; leave extra stopping distance.'],
@@ -156,7 +158,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
       title: 'Low visibility (fog or heavy precipitation)',
       when: `${s.when} (${formatDuration(s.minutes * 60)})`,
       where: s.where,
-      why: Number.isFinite(minVis) ? `Forecast visibility down to ${fmt.dist(minVis)}.` : 'Fog in the forecast weather code.',
+      why: Number.isFinite(minVis) ? `${SRC} visibility down to ${fmt.dist(minVis)}.` : 'Fog in the forecast weather code.',
       actions: ['Use low beams, not high beams, in fog.', 'Slow down so you can stop within the distance you can see.'],
       focus: w[0],
       range: w,
@@ -171,7 +173,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
       title: 'Thunderstorms possible',
       when: formatClock(ev.rows[i].t, ev.rows[i].timezone || model.originTz),
       where: placeLabel(model, model.samples[i]).text,
-      why: `Forecast weather code: ${describeCode(ev.rows[i].wx.weatherCode)}.`,
+      why: `${SRC} weather code: ${describeCode(ev.rows[i].wx.weatherCode)}.`,
       actions: ['Check radar and NWS alerts before this stretch; do not drive through flooded roads.'],
       focus: i,
       range: [i, i],
@@ -245,7 +247,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
       title: 'Below-freezing temperatures',
       when: formatClock(ev.rows[i].t, ev.rows[i].timezone || model.originTz),
       where: placeLabel(model, model.samples[i]).text,
-      why: `Forecast low of ${fmt.temp(ev.minTemp)} on the route.`,
+      why: `${SRC} low of ${fmt.temp(ev.minTemp)} on the route.`,
       actions: ['Bridges, overpasses and shaded curves can ice even without precipitation.'],
       focus: i,
       range: [i, i],

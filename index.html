@@ -39,12 +39,12 @@
       <aside class="side" aria-label="Trip planner">
         <div class="mode-switch card" role="group" aria-label="Data mode">
           <button type="button" class="mode-btn" data-mode="real" aria-pressed="true">Real-data planning<small>live routing + forecast</small></button>
-          <button type="button" class="mode-btn" data-mode="demo" aria-pressed="false">Manual demo scenarios<small>hand-set data · no API calls</small></button>
+          <button type="button" class="mode-btn" data-mode="demo" aria-pressed="false">Manual demo scenarios<small>hand-set data · no weather/route API</small></button>
         </div>
 
         <section id="scenario-card" class="card scenario-card" aria-labelledby="scenario-title" hidden>
           <h2 class="card-title" id="scenario-title">Manual demo scenarios</h2>
-          <p class="note">These use <strong>deliberately hand-set weather and delay values</strong> on a recorded real route, to show the features reproducibly. They are <strong>not</strong> forecasts or traffic data, and they make no network requests.</p>
+          <p class="note">These use <strong>deliberately hand-set weather and delay values</strong> on a recorded real route, to show the features reproducibly. They are <strong>not</strong> forecasts or traffic data. No weather, routing or traffic API is called (only map tiles load).</p>
           <div id="scenarios" class="scenarios"></div>
         </section>
 

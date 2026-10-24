@@ -1,44 +1,25 @@
-# GlarePilot — project status (2026-10-24, Hackachusetts 2026)
+# GlarePilot — project status (2026-10-24 ~7:15 PM ET)
 
-Live: https://umass308xiaofanliu.github.io/glarepilot/ (GitHub Pages, deployed commit 8ad2b12) · Repo: https://github.com/Umass308XiaofanLiu/glarepilot
+**Recording / submission build (frozen):** https://umass308xiaofanliu.github.io/glarepilot/ — app code = commit `8ad2b12` (main also has docs-only commits after it). Do not redeploy visible UI until the human finishes recording.
 
-## Completed
-- Route-time forecast and sun-glare planner: Valhalla route (OSRM fallback), 1 km samples, Open-Meteo forecast at each projected arrival time, SunCalc glare, hazards, departure optimizer, deterministic rules engine.
-- Two data modes: real-data planning (live route + forecast retrieved now; recorded real-data snapshots labeled separately) and four manual demo scenarios with hand-set synthetic weather/delay (`?demo=`).
-- Traffic delay assumption (+15 min … +2 h, chosen stretch) with the "What the assumed delay changes" card.
-- Animated route condition icons and 2D overview / 3D chase preview sharing one selected time.
-- Second independent Kiro subagent review of the deployed build: no blockers; its majors were fixed.
+## Done and verified (live build)
+- Real forecast planning: live Valhalla/OSRM route + Open-Meteo forecast, each point evaluated at its projected future arrival time (departure + routed time + breaks + assumed delay); provenance strip with retrieval time.
+- Recorded real-data snapshots (`?snapshot=…`) and four API-free manual demo scenarios (`?demo=…`, hand-set synthetic data, labelled).
+- Delay assumptions propagate to every downstream arrival time, forecast hour, sun position and glare; "What the assumed delay changes" card.
+- Animated original SVG condition icons (glare, sun-aligned, rain, snow, fog, wind, night, assumed delay), legend, Animation on/off, prefers-reduced-motion.
+- 2D north-up overview ↔ Canvas 3D chase preview (simulated playback, not GPS; no terrain/buildings) sharing one time state; wheel/swipe/keys preview, Return to playback position, Close/Near/Far/Wide, Play/Pause.
+- Tests at freeze: 35 unit + 13 E2E pass; independent subagent reviews twice, findings fixed; live smoke checks (desktop, mobile, reduced motion, zero weather/route API calls in demo mode).
+- Narrated (synthetic Piper voice, LJ Speech public domain) + captioned 2:50 video, SRT, transcript: GitHub release `v1.0-hackachusetts`.
 
-## In progress
-- Demo video upload and SundAI submission (human-only, below).
+## Not in the recording build
+- 3D terrain view: code on branch `terrain-preview`, build + tests pass, WebGL rendering NOT visually verified (headless WebGL crashes on this machine) → not deployed.
+- Buildings: not started. Terrain solar occlusion: not implemented (est. 2–4 h for a bounded, tested DEM-horizon approximation).
+- Live/predictive traffic: no credentials; delay assumptions instead. GPS: not implemented.
 
-## Deferred / not implemented
-- GPS / live location tracking (not implemented; the 3D view is a simulated playback).
-- Live or predictive traffic integration.
-- Terrain, buildings or a WebGL 3D map. Project license. Cloudflare Pages mirror.
-
-## Renderer
-Canvas 2D perspective projection of the actual route geometry from a camera behind/above the simulated playback position (`src/ui/chase3d.js`). Sky, sun, clouds, rain, snow, fog, wind streaks, night, headlights and assumed-delay tail lights come from the represented point's projected conditions. Limitations: no terrain, elevation, buildings, lanes or WebGL; flat ground plane.
-
-## Traffic integration vs delay scenarios
-No traffic provider is connected. Free public Valhalla/OSRM return free-flow times (a Valhalla `date_time` request returned the same 10,475 s for Amherst → New York); TomTom/HERE/Google need keys that were not available. Delay is an explicit user (or scenario) assumption, spread linearly over the chosen stretch; later points' arrival, forecast hour, sun and glare are recomputed. Forecast window: departure −3.5 h … arrival +5.5 h.
-
-## Real data vs synthetic
-Real mode and snapshots: Open-Meteo forecast + routed times, retrieval time shown. Scenarios: hand-set values on a recorded real route; no weather/routing/traffic API calls, only OSM map tiles.
-
-## Animation coverage
-Inline SVG icons for glare, sun-aligned, snow/ice, rain, fog, wind, delay and dark; CSS transform/opacity cycles ≥ 1.6 s, no flashing; "Animation: on/off" toggle; `prefers-reduced-motion` disables icon and 3D motion.
-
-## Tests
-35 unit (`npm test`: math, pipeline, scenarios) and 13 E2E (`npm run test:e2e`: app, modes) pass.
-
-## Human-only submission actions
-SundAI login · add team members · choose track · upload video publicly · paste links and text · Submit before 8:00 PM ET and confirm.
+## Human-only actions
+1. Upload the video publicly (YouTube/Vimeo) — file and text in release `v1.0-hackachusetts` and `docs/media/youtube.md`.
+2. SundAI: log in, add team members, choose track (recommended Civic Action V3), paste repo/demo/video links + text from `docs/SUBMISSION.md`, Submit before 8 PM, confirm it shows as submitted.
+3. Optional: license choice.
 
 ## Choices made by the agent (not explicit human decisions)
-- Delay modeled as a linear spread over a chosen route stretch (whole trip, first quarter, mid-route 37.5–62.5 %, last quarter).
-- Four scenario designs and their hand-set values (`src/lib/scenarios.js`): storm-crosswind (Amherst → NYC 1:00 PM, heavy rain, gusts to 85 km/h, van/truck); sunset-glare (Amherst → Chicago 8:00 AM, clear skies); snow-fog-night (Albany → Boston 7:30 PM, snow + freezing fog); congestion-shift (Amherst → NYC 3:30 PM, +75 min mid-route, rain after 6:15 PM).
-- Canvas perspective instead of a WebGL map library: MapLibre/Cesium need tile/style sources and more time; Mapbox/Google need keys.
-- GitHub Pages instead of Cloudflare Pages (no Cloudflare credentials).
-- Civic Action V3 track recommendation (the human decides).
-- No license chosen.
+Linear delay spread over a chosen route quarter; the four scenario designs and values; Canvas perspective instead of a WebGL map for the shipped 3D view; GitHub Pages (no Cloudflare credentials); Civic Action V3 recommendation; no license; video published as a release asset to avoid repo bloat.

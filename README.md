@@ -11,7 +11,9 @@ Forecast weather and sun glare for the places **and the times** you will actuall
 | [`?demo=congestion-shift`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift) | **Manual demo scenario** (synthetic): an assumed 75 min mid-route delay pushes the New York arrival into hand-set rain and darkness |
 | [`?demo=sunset-glare&view=3d`](https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d) | **Manual demo scenario** (synthetic, clear skies) opened in the **3D chase preview** |
 
-**Demo video:** TODO (human) — paste the public YouTube/Vimeo link here. A captioned screen recording of the live site (under 3 min, no audio) is in [docs/media/glarepilot-demo.mp4](docs/media/glarepilot-demo.mp4).
+**Demo video:** public YouTube link — TODO (human uploads). Narrated + captioned 2:50 recording of the live site: [GitHub release v1.0-hackachusetts](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts) (MP4 + SRT; synthetic TTS narration). Transcript: [docs/media/TRANSCRIPT.md](docs/media/TRANSCRIPT.md).
+
+[![GlarePilot demo video poster](docs/media/glarepilot-demo-poster.png)](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts)
 
 Hackachusetts 2026 entry. Built with Kiro CLI — see [docs/SUBMISSION.md](docs/SUBMISSION.md).
 
@@ -233,3 +235,11 @@ Forecasts and geocoding: Open-Meteo (CC BY 4.0). Routing: Valhalla on FOSSGIS se
 ## Team
 
 TODO (human) — add team member names as registered on SundAI.
+
+## Roadmap (not in this build)
+
+- **3D terrain view** (MapLibre GL + AWS Terrain Tiles): implemented on branch [`terrain-preview`](https://github.com/Umass308XiaofanLiu/glarepilot/tree/terrain-preview) but not visually verified (no WebGL in the build machine's headless browser), so it is not deployed.
+- **Terrain/building sun occlusion** in the glare calculation: not modeled. Glare uses bare sun geometry vs heading plus forecast clouds; hills, buildings, trees and road cuts can hide the sun.
+- **Live or predictive traffic**: not connected (the free routers are free-flow; traffic-aware APIs need keys). Delays are explicit user assumptions.
+- **Real GPS follow**: not implemented; the 3D view is a simulated playback of the planned route.
+- Buildings in 3D, more scenario authoring, broader test coverage.

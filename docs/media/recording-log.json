@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-24T22:51:02.183Z",
+  "capturedAt": "2026-10-24T23:00:13.020Z",
   "baseUrl": "https://umass308xiaofanliu.github.io/glarepilot/",
   "scenes": [
     {
@@ -8,139 +8,283 @@
       "mode": "live",
       "provenance": "Live forecast · Valhalla route",
       "kpis": "DRIVE\n14h 24m\n913 mi · no stops\nARRIVE\n9:24 PM CDT\nSun, Oct 25 · Chicago, IL\nSUN GLARE\nSoftened\nby clouds · 18 min low sun ahead\nAFTER DARK\n3h 14m\n22% of the drive\nWET / SNOWY\nDry\nforecast precipitation\nTEMPERATURE\n36°F – 68°F\ncrosswind gusts to 14 mph",
-      "at": "2026-10-24T22:51:15.607Z"
+      "at": "2026-10-24T23:01:47.905Z"
     },
     {
       "name": "real-chicago",
       "data": "live",
-      "at": "2026-10-24T22:51:17.170Z"
+      "at": "2026-10-24T23:01:49.450Z"
     },
     {
       "name": "congestion-shift",
       "data": "synthetic",
-      "at": "2026-10-24T22:52:03.160Z",
+      "at": "2026-10-24T23:02:57.204Z",
       "prov": "Manual demo scenario — synthetic data. “Delay shifts the weather”: Hand-set: dry and sunny until 6:15 PM, then a rain band with gusts reaches the New York end. An assumed 75 min mid-route delay pushes arrival into the rain and darkness. Weather and the traffic delay are hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real Valhalla route captured Sat 4:12 PM EDT, Oct 24. Each point uses conditions at its projected arrival time: departure Sun 3:30 PM EDT + routed drive time plus your assumed 1 h 15 min delay mid-route.\nWhat is forecast, computed, estimated or assumed?"
     },
     {
       "name": "storm-crosswind",
       "data": "synthetic",
-      "at": "2026-10-24T22:52:16.873Z",
+      "at": "2026-10-24T23:03:07.372Z",
       "prov": "Manual demo scenario — synthetic data. “Heavy rain + crosswind”: A hand-set squall line with heavy rain and 85 km/h westerly gusts across the middle of the drive; vehicle set to van/truck. Weather is hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real Valhalla route captured Sat 4:12 PM EDT, Oct 24. Each point uses conditions at its projected arrival time: departure Sun 1:00 PM EDT + routed drive time.\nWhat is forecast, computed, estimated or assumed?"
+    },
+    {
+      "name": "snow-fog-night",
+      "data": "synthetic",
+      "at": "2026-10-24T23:03:17.617Z",
+      "prov": "Manual demo scenario — synthetic data. “Snow, fog and night”: Hand-set snow over the Berkshires, freezing fog near Worcester, all after dark. Weather is hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real Valhalla route captured Sat 4:12 PM EDT, Oct 24. Each point uses conditions at its projected arrival time: departure Sun 7:30 PM EDT + routed drive time.\nWhat is forecast, computed, estimated or assumed?"
     },
     {
       "name": "sunset-glare",
       "data": "synthetic",
-      "at": "2026-10-24T22:52:29.106Z",
+      "at": "2026-10-24T23:03:28.969Z",
       "prov": "Manual demo scenario — synthetic data. “Westbound sunset glare”: Hand-set clear skies everywhere, so the low sun straight ahead near Lake Erie is not softened by clouds. Weather is hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real Valhalla route captured Sat 4:12 PM EDT, Oct 24. Each point uses conditions at its projected arrival time: departure Sun 8:00 AM EDT + routed drive time.\nWhat is forecast, computed, estimated or assumed?"
     }
   ],
-  "realProv": "Real-data plan. Valhalla route and Open-Meteo forecast retrieved Sat 6:51 PM EDT, Oct 24. Trip departs Sun 8:00 AM EDT and arrives Sun 9:24 PM CDT. Each point uses conditions at its projected arrival time: departure Sun 8:00 AM EDT + routed drive time.\nWhat is forecast, computed, estimated or assumed?",
+  "realProv": "Real-data plan. Valhalla route and Open-Meteo forecast retrieved Sat 7:01 PM EDT, Oct 24. Trip departs Sun 8:00 AM EDT and arrives Sun 9:24 PM CDT. Each point uses conditions at its projected arrival time: departure Sun 8:00 AM EDT + routed drive time.\nWhat is forecast, computed, estimated or assumed?",
   "realDelayCard": "What the assumed delay changes\nYour assumption — not measured or predicted traffic\n\n+1 h mid-route. Every point after the slow stretch is reached later, so 17 of 34 forecast checkpoints move to a different forecast hour and the sun angles are recomputed.\n\nARRIVAL\n9:24 PM CDT → 10:24 PM CDT\nWET ROADS\n0 → 0 min\nSTRONG GLARE\n1 → 1 min\nAFTER DARK\n194 → 259 min\nSTRONG CROSSWIND\n0 → 0 min\nSNOW / ICE\n0 → 0 min",
+  "realAdvice": "Leave 1 h 30 min earlier: Sun 6:30 AM EDT\nArrive Sun 8:54 PM CDT\nSame route\n\nStrong/severe glare 1 → 0 min; after dark 259 → 178 min. Exposure score 113 → 72 (weighted minutes; lower is better).\n\nUse “Try this departure” to re-plan with this time.\nTry this departure\nWSW-bound sunset glare near Elyria, OH\nSun 4:32 PM EDT – 6:34 PM EDT (2 h 1 min)\nI 90 West · 25 mi from Erie, PA → I 90 · 9 mi from Lorain, OH\n\nSun 0–18° above the horizon and as close as 1° to your heading (WSW). Geometric risk: severe; forecast cloud cover ~100%, so expected glare is mild.\n\nClouds will likely soften this, but keep sunglasses handy in case they break.\nLong day of driving\n14 h 24 min of routed driving\nWhole trip\n\nRouted drive time is 14 h 24 min before traffic, fuel and food stops.\n\nShare the driving or split the trip if you can.\nTake a break about every 2 hours, and pull over if you feel drowsy.\nWSW-bound sunset glare 17 mi from Erie, PA\nSun 3:38 PM EDT – 4:25 PM EDT (47 min)\nI 90 West · 19 mi from Erie, PA → I 90 West · 20 mi from Erie, PA\n\nSun 19–25° above the horizon and as close as 0° to your heading (WSW). Geometric risk: mild; forecast cloud cover ~100%, so expected glare is no.\n\nClouds will likely soften this, but keep sunglasses handy in case they break.\nLow sun behind you\nSun 8:27 AM EDT – 8:50 AM EDT (24 min)\nI 90 West · near Westfield, MA\n\nSun is low and behind your direction of travel: traffic signals and brake lights can look unlit, and oncoming drivers face glare.\n\nTake extra care at signals and when other drivers turn across your lane.\n4 h 19 min of driving after dark\nSun 7:05 PM EDT – 10:24 PM CDT\nI 90 · 13 mi from Sandusky, OH\n\nSun more than 6° below the horizon for 30% of the drive.\n\nWatch for deer around dusk and dawn, especially on rural roads.\nDim dashboard lights and keep the windshield clean to cut glare from headlights.",
   "hudAfterWheel": "Previewing ahead: +14 min · 15 mi",
-  "motionLabel": "Animation: off",
-  "durationSeconds": 128.77,
+  "returned": true,
+  "narration": {
+    "engine": "piper-tts 1.3.0",
+    "voice": "en_US-ljspeech-medium.onnx",
+    "cues": [
+      {
+        "key": "problem",
+        "start": 0.31,
+        "seconds": 8.57
+      },
+      {
+        "key": "pitch",
+        "start": 9.35,
+        "seconds": 4.98
+      },
+      {
+        "key": "modes",
+        "start": 14.83,
+        "seconds": 6.11
+      },
+      {
+        "key": "preset",
+        "start": 21.41,
+        "seconds": 6.84
+      },
+      {
+        "key": "prov",
+        "start": 28.74,
+        "seconds": 6.97
+      },
+      {
+        "key": "kpis",
+        "start": 36.17,
+        "seconds": 3.92
+      },
+      {
+        "key": "map",
+        "start": 40.56,
+        "seconds": 6.44
+      },
+      {
+        "key": "delay",
+        "start": 47.47,
+        "seconds": 5.25
+      },
+      {
+        "key": "delayCard",
+        "start": 53.18,
+        "seconds": 5.63
+      },
+      {
+        "key": "advice",
+        "start": 59.3,
+        "seconds": 5.28
+      },
+      {
+        "key": "opt",
+        "start": 65.06,
+        "seconds": 8.89
+      },
+      {
+        "key": "optBest",
+        "start": 74.44,
+        "seconds": 7.42
+      },
+      {
+        "key": "demo",
+        "start": 82.31,
+        "seconds": 8.58
+      },
+      {
+        "key": "congestion",
+        "start": 93.28,
+        "seconds": 6.41
+      },
+      {
+        "key": "storm",
+        "start": 103.45,
+        "seconds": 6.06
+      },
+      {
+        "key": "snow",
+        "start": 113.7,
+        "seconds": 7.22
+      },
+      {
+        "key": "sunset",
+        "start": 125.05,
+        "seconds": 5.82
+      },
+      {
+        "key": "chase",
+        "start": 131.33,
+        "seconds": 5.57
+      },
+      {
+        "key": "wheel",
+        "start": 137.38,
+        "seconds": 4.82
+      },
+      {
+        "key": "play",
+        "start": 142.66,
+        "seconds": 3.2
+      },
+      {
+        "key": "sources",
+        "start": 150.88,
+        "seconds": 8.64
+      },
+      {
+        "key": "closing",
+        "start": 159.98,
+        "seconds": 9.22
+      }
+    ]
+  },
+  "output": "/tmp/gp_release/glarepilot-demo.mp4",
+  "durationSeconds": 169.88,
   "segments": [
     {
       "name": "a-desktop",
-      "seconds": 118.57,
-      "frames": 4341
+      "seconds": 150.56,
+      "frames": 4908
     },
     {
       "name": "c-closing",
-      "seconds": 10.2,
-      "frames": 133
+      "seconds": 19.32,
+      "frames": 1137
     }
   ],
   "captions": [
     {
-      "start": 0.32,
-      "end": 4.32,
-      "text": "GlarePilot: weather and sun glare where — and when — you’ll actually drive"
+      "start": 0.31,
+      "end": 9.35,
+      "text": "Long drives go wrong in predictable ways: low sun in your eyes, a storm at the wrong hour, or darkness arriving before you do."
     },
     {
-      "start": 4.32,
-      "end": 8.94,
-      "text": "Two modes: Real-data planning (live route + forecast) and Manual demo scenarios"
+      "start": 9.35,
+      "end": 14.83,
+      "text": "GlarePilot checks weather and sun glare where, and when, you will actually be driving."
     },
     {
-      "start": 8.94,
-      "end": 12.74,
-      "text": "Real-data planning: Amherst → Chicago, leaving 8:00 AM tomorrow"
+      "start": 14.83,
+      "end": 21.41,
+      "text": "It has two clearly separated modes: real data planning, and manual demo scenarios."
     },
     {
-      "start": 12.74,
-      "end": 17.85,
-      "text": "Live route + forecast retrieved now — each point evaluated at its projected arrival time"
+      "start": 21.41,
+      "end": 28.74,
+      "text": "Real-data planning first. Preset: Amherst → Chicago, leaving 8:00 AM tomorrow."
     },
     {
-      "start": 17.85,
-      "end": 22.38,
-      "text": "Trip summary (live data): 14h 24m drive, arrive 9:24 PM CDT"
+      "start": 28.74,
+      "end": 36.17,
+      "text": "The route and the forecast are retrieved live, right now. Each point is evaluated at its projected arrival time."
     },
     {
-      "start": 22.38,
-      "end": 35.26,
-      "text": "Map: route colored by sun glare, with condition icons at forecast trouble spots"
+      "start": 36.17,
+      "end": 40.56,
+      "text": "The trip summary shows the drive time and the expected arrival."
     },
     {
-      "start": 35.26,
-      "end": 42.8,
-      "text": "Assumed +1 h delay — your assumption, not traffic data — every later point re-timed"
+      "start": 40.56,
+      "end": 47.47,
+      "text": "On the map, the route is colored by sun glare, and animated icons mark forecast trouble spots."
     },
     {
-      "start": 42.8,
-      "end": 46.93,
-      "text": "“When should I leave?” — same route, departures −3 h…+3 h, transparent exposure score"
+      "start": 47.47,
+      "end": 53.18,
+      "text": "Traffic is not predicted. Instead, you state a delay. Here we assume one extra hour."
     },
     {
-      "start": 46.93,
-      "end": 52.05,
-      "text": "Lower bars = less glare, wet, wind and after-dark exposure; the best option is marked"
+      "start": 53.18,
+      "end": 59.3,
+      "text": "The delay card shows the new arrival, and every later point is re-timed against the forecast."
     },
     {
-      "start": 52.05,
-      "end": 58.75,
-      "text": "Manual demo scenarios — hand-set synthetic data, no weather/route API calls"
+      "start": 59.3,
+      "end": 65.06,
+      "text": "Advice cards turn the conditions along the route into short, specific recommendations."
     },
     {
-      "start": 58.75,
-      "end": 72.45,
-      "text": "“Delay shifts the weather” (synthetic): an assumed 75 min delay pushes arrival into rain and dark"
+      "start": 65.06,
+      "end": 74.44,
+      "text": "“When should I leave?” compares the same route departing −3 h … +3 h, using a transparent exposure score."
     },
     {
-      "start": 72.45,
-      "end": 84.68,
-      "text": "“Heavy rain + crosswind” (synthetic): rain and wind icons where the hand-set squall hits the route"
+      "start": 74.44,
+      "end": 82.31,
+      "text": "Lower bars mean less glare, wet road, wind and after-dark exposure. The best option is marked."
     },
     {
-      "start": 84.68,
-      "end": 90.42,
-      "text": "“Westbound sunset glare” (synthetic) — now the 3D chase preview"
+      "start": 82.31,
+      "end": 93.28,
+      "text": "Next, manual demo scenarios. They use hand-set synthetic weather on a recorded real route, with no weather or route API calls."
     },
     {
-      "start": 90.42,
-      "end": 96.24,
-      "text": "3D chase preview — simulated playback of the planned route, not GPS"
+      "start": 93.28,
+      "end": 103.45,
+      "text": "“Delay shifts the weather” (synthetic): an assumed 75-minute delay pushes the arrival into rain and darkness."
     },
     {
-      "start": 96.24,
-      "end": 102.33,
-      "text": "Scroll to look ahead along the route — HUD: “Previewing ahead: +14 min · 15 mi”"
+      "start": 103.45,
+      "end": 113.7,
+      "text": "“Heavy rain + crosswind” (synthetic): rain and wind icons appear where the hand-set squall crosses the route."
     },
     {
-      "start": 102.33,
-      "end": 111.4,
-      "text": "Play: simulated drive along the planned route (not GPS)"
+      "start": 113.7,
+      "end": 125.05,
+      "text": "“Snow, fog and night” (synthetic): hand-set snow over the Berkshires, freezing fog near Worcester, all after dark."
     },
     {
-      "start": 111.4,
-      "end": 118.57,
-      "text": "Animation toggle: turn motion off for a calmer, reduced-motion view"
+      "start": 125.05,
+      "end": 131.33,
+      "text": "“Westbound sunset glare” (synthetic). Now we switch from the 2D overview to the 3D chase preview."
     },
     {
-      "start": 118.9,
-      "end": 128.77,
-      "text": "Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position Manual demos use hand-set synthetic data. Planning aid, not a safety system. Built with Kiro."
+      "start": 131.33,
+      "end": 137.38,
+      "text": "The chase preview is a simulated playback of the planned route. It is not GPS."
+    },
+    {
+      "start": 137.38,
+      "end": 142.66,
+      "text": "Scrolling the wheel previews the road ahead. Return jumps back to the playback position."
+    },
+    {
+      "start": 142.66,
+      "end": 150.56,
+      "text": "Play runs a simulated drive along the planned route."
+    },
+    {
+      "start": 150.88,
+      "end": 159.98,
+      "text": "Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position."
+    },
+    {
+      "start": 159.98,
+      "end": 169.87,
+      "text": "A planning aid, not a safety system. Manual demos use hand-set data. Built with Kiro for Hackachusetts 2026."
     }
   ]
 }

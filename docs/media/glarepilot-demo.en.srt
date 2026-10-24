@@ -1,81 +1,105 @@
 1
-00:00:00,320 --> 00:00:04,322
-GlarePilot: weather and sun glare where — and when — you’ll actually drive
+00:00:00,313 --> 00:00:09,350
+Long drives go wrong in predictable ways: low sun in your eyes,
+a storm at the wrong hour, or darkness arriving before you do.
 
 2
-00:00:04,322 --> 00:00:08,942
-Two modes: Real-data planning (live route
-+ forecast) and Manual demo scenarios
+00:00:09,350 --> 00:00:14,829
+GlarePilot checks weather and sun glare where,
+and when, you will actually be driving.
 
 3
-00:00:08,943 --> 00:00:12,737
-Real-data planning: Amherst → Chicago, leaving 8:00 AM tomorrow
+00:00:14,829 --> 00:00:21,406
+It has two clearly separated modes: real
+data planning, and manual demo scenarios.
 
 4
-00:00:12,737 --> 00:00:17,848
-Live route + forecast retrieved now — each
-point evaluated at its projected arrival time
+00:00:21,406 --> 00:00:28,737
+Real-data planning first. Preset: Amherst → Chicago, leaving 8:00 AM tomorrow.
 
 5
-00:00:17,848 --> 00:00:22,378
-Trip summary (live data): 14h 24m drive, arrive 9:24 PM CDT
+00:00:28,737 --> 00:00:36,172
+The route and the forecast are retrieved live, right now.
+Each point is evaluated at its projected arrival time.
 
 6
-00:00:22,378 --> 00:00:35,260
-Map: route colored by sun glare, with
-condition icons at forecast trouble spots
+00:00:36,172 --> 00:00:40,555
+The trip summary shows the drive time and the expected arrival.
 
 7
-00:00:35,260 --> 00:00:42,802
-Assumed +1 h delay — your assumption, not
-traffic data — every later point re-timed
+00:00:40,555 --> 00:00:47,469
+On the map, the route is colored by sun glare,
+and animated icons mark forecast trouble spots.
 
 8
-00:00:42,802 --> 00:00:46,931
-“When should I leave?” — same route, departures
-−3 h…+3 h, transparent exposure score
+00:00:47,469 --> 00:00:53,175
+Traffic is not predicted. Instead, you state
+a delay. Here we assume one extra hour.
 
 9
-00:00:46,931 --> 00:00:52,049
-Lower bars = less glare, wet, wind and
-after-dark exposure; the best option is marked
+00:00:53,175 --> 00:00:59,301
+The delay card shows the new arrival, and every
+later point is re-timed against the forecast.
 
 10
-00:00:52,049 --> 00:00:58,745
-Manual demo scenarios — hand-set synthetic data, no weather/route API calls
+00:00:59,301 --> 00:01:05,060
+Advice cards turn the conditions along the
+route into short, specific recommendations.
 
 11
-00:00:58,745 --> 00:01:12,449
-“Delay shifts the weather” (synthetic): an assumed
-75 min delay pushes arrival into rain and dark
+00:01:05,060 --> 00:01:14,438
+“When should I leave?” compares the same route departing
+−3 h … +3 h, using a transparent exposure score.
 
 12
-00:01:12,449 --> 00:01:24,681
-“Heavy rain + crosswind” (synthetic): rain and wind
-icons where the hand-set squall hits the route
+00:01:14,438 --> 00:01:22,313
+Lower bars mean less glare, wet road, wind and
+after-dark exposure. The best option is marked.
 
 13
-00:01:24,681 --> 00:01:30,418
-“Westbound sunset glare” (synthetic) — now the 3D chase preview
+00:01:22,313 --> 00:01:33,281
+Next, manual demo scenarios. They use hand-set synthetic weather
+on a recorded real route, with no weather or route API calls.
 
 14
-00:01:30,418 --> 00:01:36,243
-3D chase preview — simulated playback of the planned route, not GPS
+00:01:33,281 --> 00:01:43,452
+“Delay shifts the weather” (synthetic): an assumed
+75-minute delay pushes the arrival into rain and darkness.
 
 15
-00:01:36,243 --> 00:01:42,335
-Scroll to look ahead along the route —
-HUD: “Previewing ahead: +14 min · 15 mi”
+00:01:43,452 --> 00:01:53,704
+“Heavy rain + crosswind” (synthetic): rain and wind icons
+appear where the hand-set squall crosses the route.
 
 16
-00:01:42,335 --> 00:01:51,401
-Play: simulated drive along the planned route (not GPS)
+00:01:53,704 --> 00:02:05,048
+“Snow, fog and night” (synthetic): hand-set snow over the
+Berkshires, freezing fog near Worcester, all after dark.
 
 17
-00:01:51,401 --> 00:01:58,568
-Animation toggle: turn motion off for a calmer, reduced-motion view
+00:02:05,048 --> 00:02:11,327
+“Westbound sunset glare” (synthetic). Now we switch
+from the 2D overview to the 3D chase preview.
 
 18
-00:01:58,896 --> 00:02:08,766
-Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position
-Manual demos use hand-set synthetic data. Planning aid, not a safety system. Built with Kiro.
+00:02:11,327 --> 00:02:17,378
+The chase preview is a simulated playback of the planned route. It is not GPS.
+
+19
+00:02:17,378 --> 00:02:22,664
+Scrolling the wheel previews the road ahead.
+Return jumps back to the playback position.
+
+20
+00:02:22,664 --> 00:02:30,555
+Play runs a simulated drive along the planned route.
+
+21
+00:02:30,876 --> 00:02:39,977
+Free, keyless data: Open-Meteo forecasts ·
+Valhalla/OSRM routing · SunCalc sun position.
+
+22
+00:02:39,977 --> 00:02:49,874
+A planning aid, not a safety system. Manual demos use
+hand-set data. Built with Kiro for Hackachusetts 2026.

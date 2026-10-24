@@ -14,12 +14,15 @@
 // - A small synthetic pointer is overlaid by this script (pointer-events: none) so viewers
 //   can see where clicks happen. The app's code and data are not modified.
 //
-// Outputs (docs/media/): glarepilot-demo.mp4, glarepilot-demo.en.srt,
-// glarepilot-demo-poster.png, recording-log.json
+// - Narration: offline Piper TTS (see PIPER_BIN / PIPER_VOICE); one WAV per caption cue,
+//   cues never overlap; mixed to AAC 128 kbps. NARRATE=0 records captions only.
+//
+// Outputs: MP4 at $FINAL_MP4 (default /tmp/gp_release/glarepilot-demo.mp4 — never in the repo);
+// docs/media/: glarepilot-demo.en.srt, TRANSCRIPT.md, glarepilot-demo-poster.png, recording-log.json
 import puppeteer from 'puppeteer-core';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const BASE = process.argv[2] || 'https://umass308xiaofanliu.github.io/glarepilot/';
@@ -30,6 +33,15 @@ const VH = 900; // video height
 const PH = 810; // page viewport height (desktop); the remaining 90 px is the caption bar
 const BAR_COLOR = '0x0f1b33';
 const FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+
+// Narration (optional): an offline Piper TTS voice. Every caption cue is also spoken; the
+// recording waits until a cue's audio has finished before the next cue starts, so lines
+// never overlap. Set NARRATE=0 to record captions only.
+const NARRATE = process.env.NARRATE !== '0';
+const PIPER = process.env.PIPER_BIN || '/tmp/gp_tts/bin/piper';
+const VOICE = process.env.PIPER_VOICE || '/tmp/gp_voice/en_US-ljspeech-medium.onnx';
+const FINAL = process.env.FINAL_MP4 || '/tmp/gp_release/glarepilot-demo.mp4'; // never inside the repo
+const GAP = 0.45; // silence after each spoken cue (s)
 
 mkdirSync(OUT, { recursive: true });
 const work = mkdtempSync(join(tmpdir(), 'gp-video-'));
@@ -75,6 +87,8 @@ async function startSegment(page, name, { maxWidth, maxHeight }) {
 }
 
 async function endSegment() {
+  await waitSpeech();
+  await sleep(200);
   closeCaption();
   await session.send('Page.stopScreencast');
   await session.detach().catch(() => {});
@@ -94,10 +108,70 @@ function wrap(line, max = 78) {
   for (let i = 0; i < line.length; i++) if (line[i] === ' ' && (cut < 0 || Math.abs(i - mid) < Math.abs(cut - mid))) cut = i;
   return cut < 0 ? [line] : [line.slice(0, cut), line.slice(cut + 1)];
 }
-function caption(...input) {
+// Spoken text for each caption key (written for the ear; the caption shows the same words).
+const SAY = {
+  problem: 'Long drives go wrong in predictable ways: low sun in your eyes, a storm at the wrong hour, or darkness arriving before you do.',
+  pitch: 'GlarePilot checks weather and sun glare where, and when, you will actually be driving.',
+  modes: 'It has two clearly separated modes: real data planning, and manual demo scenarios.',
+  preset: 'Real data planning first. We pick a preset: Amherst to Chicago, leaving at eight A.M. tomorrow.',
+  prov: 'The route and the forecast are retrieved live, right now. Each point is evaluated at its projected arrival time.',
+  kpis: 'The trip summary shows the drive time and the expected arrival.',
+  map: 'On the map, the route is colored by sun glare, and animated icons mark forecast trouble spots.',
+  delay: 'Traffic is not predicted. Instead, you state a delay. Here we assume one extra hour.',
+  delayCard: 'The delay card shows the new arrival, and every later point is re-timed against the forecast.',
+  advice: 'Advice cards turn the conditions along the route into short, specific recommendations.',
+  opt: 'When should I leave? compares the same route with departures from three hours earlier to three hours later, using a transparent exposure score.',
+  optBest: 'Lower bars mean less glare, wet road, wind and after-dark exposure. The best option is marked.',
+  demo: 'Next, manual demo scenarios. They use hand-set synthetic weather on a recorded real route, with no weather or route API calls.',
+  congestion: 'Delay shifts the weather. An assumed seventy-five minute delay pushes the arrival into rain and darkness.',
+  storm: 'Heavy rain and crosswind. Rain and wind icons appear where the hand-set squall crosses the route.',
+  snow: 'Snow, fog and night. Hand-set snow over the Berkshires and freezing fog near Worcester, all after dark.',
+  sunset: 'Westbound sunset glare. Now we switch from the 2D overview to the 3D chase preview.',
+  chase: 'The chase preview is a simulated playback of the planned route. It is not GPS.',
+  wheel: 'Scrolling the wheel previews the road ahead. Return jumps back to the playback position.',
+  play: 'Play runs a simulated drive along the planned route.',
+  sources: 'GlarePilot uses free, keyless data: Open-Meteo forecasts, Valhalla and OSRM routing, and SunCalc for sun position.',
+  closing: 'It is a planning aid, not a safety system. Manual demos use hand-set data. Built with Kiro for Hackachusetts 2026.',
+};
+// Caption text where the on-screen form differs from the spoken form.
+const SHOW = {
+  preset: 'Real-data planning first. Preset: Amherst → Chicago, leaving 8:00 AM tomorrow.',
+  opt: '“When should I leave?” compares the same route departing −3 h … +3 h, using a transparent exposure score.',
+  congestion: '“Delay shifts the weather” (synthetic): an assumed 75-minute delay pushes the arrival into rain and darkness.',
+  storm: '“Heavy rain + crosswind” (synthetic): rain and wind icons appear where the hand-set squall crosses the route.',
+  snow: '“Snow, fog and night” (synthetic): hand-set snow over the Berkshires, freezing fog near Worcester, all after dark.',
+  sunset: '“Westbound sunset glare” (synthetic). Now we switch from the 2D overview to the 3D chase preview.',
+  sources: 'Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position.',
+  closing: 'A planning aid, not a safety system. Manual demos use hand-set data. Built with Kiro for Hackachusetts 2026.',
+};
+const voice = {}; // key -> { wav, dur }
+function synthAll() {
+  const dir = join(work, 'voice');
+  mkdirSync(dir, { recursive: true });
+  for (const [k, text] of Object.entries(SAY)) {
+    const wav = join(dir, `${k}.wav`);
+    execFileSync(PIPER, ['-m', VOICE, '-f', wav], { input: text, stdio: ['pipe', 'ignore', 'ignore'] });
+    const dur = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', wav]).toString().trim());
+    voice[k] = { wav, dur };
+  }
+  log(`synthesized ${Object.keys(voice).length} cues, ${Object.values(voice).reduce((s, v) => s + v.dur, 0).toFixed(1)} s of speech`);
+}
+const cues = []; // spoken cues: { key, start, dur, wav } in global video seconds
+let speakingUntil = 0;
+async function waitSpeech() {
+  while (seg && globalNow() < speakingUntil) await sleep(50);
+}
+async function caption(key) {
+  await waitSpeech();
   closeCaption();
-  const lines = input.length > 1 ? input : wrap(input[0]); // explicit multi-line captions are pre-split
-  captions.push({ start: globalNow(), end: null, lines });
+  const text = SHOW[key] || SAY[key];
+  const lines = wrap(text);
+  const start = globalNow();
+  captions.push({ start, end: null, lines, key });
+  if (voice[key]) {
+    cues.push({ key, start, ...voice[key] });
+    speakingUntil = start + voice[key].dur + GAP;
+  }
   log('caption:', lines.join(' / '));
 }
 
@@ -255,6 +329,7 @@ async function recInfo(page, re) {
 }
 
 // ---------------------------------------------------------------- the demo
+if (NARRATE) synthAll();
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: 'new',
@@ -273,15 +348,17 @@ try {
   await startSegment(page, 'a-desktop', { maxWidth: VW, maxHeight: PH });
   const scene = (name, data) => report.scenes.push({ name, data, at: new Date().toISOString() });
 
-  // 1) Empty state + pitch (~10 s)
-  caption('GlarePilot: weather and sun glare where — and when — you’ll actually drive');
-  await sleep(4000);
-  caption('Two modes: Real-data planning (live route + forecast) and Manual demo scenarios');
-  await moveTo(page, '.mode-switch', { pause: 2600 });
+  // 1) Problem + pitch
+  await caption('problem');
+  await sleep(2500);
+  await caption('pitch');
+  await sleep(1500);
+  await caption('modes');
+  await moveTo(page, '.mode-switch', { pause: 1500 });
   await scrollTo(page, '.side', await sideY(page, '.presets-card'), 1300);
 
-  // 2) Real forecast planning (~40 s)
-  caption('Real-data planning: Amherst → Chicago, leaving 8:00 AM tomorrow');
+  // 2) Real forecast planning
+  await caption('preset');
   const chicago = await runPreset(page, 'chicago-sunset');
   await scrollTo(page, '.side', 0, 800);
   await scrollTo(page, 'window', 0, 400);
@@ -289,101 +366,106 @@ try {
   report.realProv = prov;
   scene('real-chicago', chicago.mode);
   log('prov:', prov);
-  if (chicago.mode === 'snapshot') {
-    caption('Recorded snapshot of a real route + forecast (live request failed) — each point at its projected arrival time');
-  } else {
-    caption('Live route + forecast retrieved now — each point evaluated at its projected arrival time');
-  }
-  await moveTo(page, '#prov', { pause: 4200 });
-  caption(`Trip summary${tag(chicago)}: ${kpi(chicago.kpis, 'Drive')} drive, arrive ${kpi(chicago.kpis, 'Arrive')}`);
-  await moveTo(page, '#kpis', { pause: 3600 });
-  caption('Map: route colored by sun glare, with condition icons at forecast trouble spots');
+  if (chicago.mode === 'snapshot') throw new Error('live request failed; narration assumes live data — rerun later or edit SAY.prov');
+  await caption('prov');
+  await moveTo(page, '#prov', { pause: 1500 });
+  await caption('kpis');
+  await moveTo(page, '#kpis', { pause: 1200 });
+  await caption('map');
   await scrollTo(page, 'window', await docY(page, '.map-card'), 1400);
-  await moveTo(page, '#map', { pause: 2600 });
-  await moveTo(page, '#cond-legend', { pause: 2200 });
-  posterAt = globalNow() - 1.0;
+  await moveTo(page, '#map', { pause: 1500 });
+  await moveTo(page, '#cond-legend', { pause: 800 });
+  posterAt = globalNow() - 0.5;
   // Traffic delay assumption
+  await caption('delay');
   await scrollTo(page, 'window', 0, 1000);
   await scrollTo(page, '.side', await sideY(page, '#delay-min', 120), 1200);
   await moveTo(page, '#delay-min', { pause: 600 });
   await page.select('#delay-min', '60');
   await page.waitForSelector('#delay-card:not([hidden])', { timeout: 30000 }).catch(() => {});
-  await sleep(500);
+  await sleep(400);
   report.realDelayCard = await txt(page, '#delay-card');
-  caption('Assumed +1 h delay — your assumption, not traffic data — every later point re-timed');
-  await moveTo(page, '#delay-card', { pause: 5200 });
+  await caption('delayCard');
+  await moveTo(page, '#delay-card', { pause: 1500 });
+  // Advice cards
+  await caption('advice');
+  await page.$eval('#advice-card', (e) => e.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  await sleep(1400);
+  report.realAdvice = await txt(page, '#advice');
+  if (await page.$('#advice .rec')) await moveTo(page, '#advice .rec', { pause: 1200 });
 
-  // 3) Optimizer glimpse (~15 s)
+  // 3) Optimizer
+  await caption('opt');
   await page.$eval('.optimizer-card', (e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   await sleep(1600);
-  caption('“When should I leave?” — same route, departures −3 h…+3 h, transparent exposure score');
-  await moveTo(page, '.opt-bar.current', { pause: 3200 });
+  await moveTo(page, '.opt-bar.current', { pause: 1500 });
   if (await page.$('.opt-bar.best')) {
-    caption('Lower bars = less glare, wet, wind and after-dark exposure; the best option is marked');
-    await moveTo(page, '.opt-bar.best', { pause: 3000 });
+    await caption('optBest');
+    await moveTo(page, '.opt-bar.best', { pause: 1500 });
   }
-  await scrollTo(page, 'window', 0, 1000);
 
-  // 4) Manual demo scenarios (~60 s)
-  caption('Manual demo scenarios — hand-set synthetic data, no weather/route API calls');
+  // 4) Manual demo scenarios (synthetic)
+  await caption('demo');
+  await scrollTo(page, 'window', 0, 1000);
   await scrollTo(page, '.side', 0, 800);
   await clickOn(page, '[data-mode="demo"]', { pause: 300 });
-  await sleep(2600);
+  await sleep(1200);
   const openScn = async (id) => {
+    await waitSpeech();
     await clickOn(page, `[data-scenario="${id}"]`, { pause: 300 });
     await page.waitForSelector('#result:not([hidden])', { timeout: 30000 });
     await waitTiles(page, 5000);
-    await sleep(600);
+    await sleep(400);
     scene(id, 'synthetic');
     report.scenes[report.scenes.length - 1].prov = await txt(page, '#prov');
   };
+  const backToScenarios = async () => {
+    await waitSpeech();
+    await scrollTo(page, 'window', 0, 800);
+    await scrollTo(page, '.side', await sideY(page, '#scenario-card'), 500);
+  };
   await openScn('congestion-shift');
-  caption('“Delay shifts the weather” (synthetic): an assumed 75 min delay pushes arrival into rain and dark');
+  await caption('congestion');
   await scrollTo(page, 'window', 0, 400);
-  if (await page.$('#delay-card:not([hidden])')) await moveTo(page, '#delay-card', { pause: 3600 });
-  else await sleep(3600);
+  if (await page.$('#delay-card:not([hidden])')) await moveTo(page, '#delay-card', { pause: 1800 });
   await scrollTo(page, 'window', await docY(page, '.map-card'), 1200);
-  await moveTo(page, '#map', { pause: 2600 });
-  await scrollTo(page, 'window', 0, 900);
-  await scrollTo(page, '.side', await sideY(page, '#scenario-card'), 600);
+  await moveTo(page, '#map', { pause: 800 });
+  await backToScenarios();
   await openScn('storm-crosswind');
-  caption('“Heavy rain + crosswind” (synthetic): rain and wind icons where the hand-set squall hits the route');
+  await caption('storm');
   await scrollTo(page, 'window', await docY(page, '.map-card'), 1200);
-  await moveTo(page, '#map', { pause: 3400 });
-  await moveTo(page, '#cond-legend', { pause: 1800 });
-  await scrollTo(page, 'window', 0, 900);
-  await scrollTo(page, '.side', await sideY(page, '#scenario-card'), 600);
+  await moveTo(page, '#map', { pause: 1500 });
+  await moveTo(page, '#cond-legend', { pause: 800 });
+  await backToScenarios();
+  await openScn('snow-fog-night');
+  await caption('snow');
+  await scrollTo(page, 'window', await docY(page, '.map-card'), 1200);
+  await moveTo(page, '#map', { pause: 1500 });
+  await backToScenarios();
   await openScn('sunset-glare');
-  caption('“Westbound sunset glare” (synthetic) — now the 3D chase preview');
+  await caption('sunset');
   await scrollTo(page, 'window', await docY(page, '.map-card'), 1200);
+  await moveTo(page, '#map', { pause: 600 });
   await clickOn(page, '[data-view="3d"]', { pause: 300 });
-  await sleep(3000);
-  caption('3D chase preview — simulated playback of the planned route, not GPS');
+  await sleep(1200);
+  await caption('chase');
   await moveTo(page, '#chase canvas', { pause: 800 });
+  await caption('wheel');
   for (let i = 0; i < 6; i++) {
     await page.mouse.wheel({ deltaY: 240 });
-    await sleep(500);
+    await sleep(450);
   }
-  await sleep(800);
+  await sleep(500);
   report.hudAfterWheel = await txt(page, '[data-hud="state"]');
-  caption(`Scroll to look ahead along the route${/preview/i.test(report.hudAfterWheel) ? ` — HUD: “${report.hudAfterWheel.split('\n')[0]}”` : ''}`);
-  await sleep(3200);
   if (await page.$('[data-act="return"]:not([disabled])')) {
     await clickOn(page, '[data-act="return"]', { pause: 300 });
-    await sleep(1500);
+    report.returned = true;
   }
-  caption('Play: simulated drive along the planned route (not GPS)');
+  await caption('play');
   await clickOn(page, '[data-act="play"]', { pause: 300 });
-  await sleep(5200);
+  await sleep(4500);
   await clickOn(page, '[data-act="play"]', { pause: 300 });
-  await sleep(1200);
-
-  // 5) Reduced motion (~8 s)
-  caption('Animation toggle: turn motion off for a calmer, reduced-motion view');
-  await clickOn(page, '#motion', { pause: 300 });
   await sleep(600);
-  report.motionLabel = await txt(page, '#motion');
-  await sleep(5200);
   await endSegment();
 
   // ======== Segment B: closing
@@ -391,10 +473,10 @@ try {
   await page.mouse.move(-50, -50);
   await sleep(400);
   await startSegment(page, 'c-closing', { maxWidth: VW, maxHeight: PH });
-  caption('Free, keyless data: Open-Meteo forecasts · Valhalla/OSRM routing · SunCalc sun position', 'Manual demos use hand-set synthetic data. Planning aid, not a safety system. Built with Kiro.');
-  await sleep(4500);
+  await caption('sources');
+  await sleep(1500);
   await scrollTo(page, 'window', 99999, 2600);
-  await sleep(2600);
+  await caption('closing');
   await endSegment();
   await page.close();
 } finally {
@@ -449,8 +531,20 @@ captions.forEach((c, i) => {
 });
 const filterFile = join(work, 'captions.filter');
 writeFileSync(filterFile, filters.join(',\n'));
-const mp4 = join(OUT, 'glarepilot-demo.mp4');
-ff(['-i', joined, '-filter_script:v', filterFile, '-c:v', 'libx264', '-preset', 'slow', '-crf', '23', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart', '-an', mp4]);
+mkdirSync(dirname(FINAL), { recursive: true });
+const mp4 = FINAL;
+const vargs = ['-filter_script:v', filterFile, '-c:v', 'libx264', '-preset', 'slow', '-crf', '23', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-r', '30'];
+if (NARRATE && cues.length) {
+  // One input per spoken cue, delayed to its caption start, mixed (no music), AAC 128 kbps.
+  const ins = cues.flatMap((c) => ['-i', c.wav]);
+  const mix = cues.map((c, i) => `[${i + 1}:a]aresample=48000,adelay=${Math.round(c.start * 1000)}:all=1[a${i}]`);
+  mix.push(`${cues.map((_, i) => `[a${i}]`).join('')}amix=inputs=${cues.length}:normalize=0,apad,atrim=0:${total.toFixed(3)},loudnorm=I=-16:TP=-1.5:LRA=11[aout]`);
+  const afile = join(work, 'audio.filter');
+  writeFileSync(afile, mix.join(';\n'));
+  ff(['-i', joined, ...ins, ...vargs, '-filter_complex_script', afile, '-map', '0:v', '-map', '[aout]', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-shortest', '-movflags', '+faststart', mp4]);
+} else {
+  ff(['-i', joined, ...vargs, '-movflags', '+faststart', '-an', mp4]);
+}
 
 const ts = (t) => {
   const ms = Math.max(0, Math.round(t * 1000));
@@ -462,6 +556,15 @@ writeFileSync(
   captions.map((c, i) => `${i + 1}\n${ts(c.start)} --> ${ts(c.end)}\n${c.lines.join('\n')}\n`).join('\n')
 );
 ff(['-ss', String((posterAt ?? 20).toFixed(2)), '-i', mp4, '-frames:v', '1', join(OUT, 'glarepilot-demo-poster.png')]);
+writeFileSync(
+  join(OUT, 'TRANSCRIPT.md'),
+  '# GlarePilot demo — narration transcript\n\n' +
+    'Narration is a synthetic text-to-speech voice (Piper, `en_US-ljspeech-medium`). Captions show the same words; ' +
+    'a few on-screen captions use written forms (for example “8:00 AM”, “−3 h … +3 h”, “(synthetic)”).\n\n' +
+    captions.map((c) => `- [${ts(c.start).slice(3, 8)}] ${SAY[c.key]}`).join('\n') + '\n'
+);
+report.narration = NARRATE ? { engine: 'piper-tts 1.3.0', voice: VOICE.split('/').pop(), cues: cues.map((c) => ({ key: c.key, start: Number(c.start.toFixed(2)), seconds: Number(c.dur.toFixed(2)) })) } : null;
+report.output = mp4;
 
 report.durationSeconds = Number(total.toFixed(2));
 report.segments = segments.map((s) => ({ name: s.name, seconds: Number((s.end - s.start).toFixed(2)), frames: s.frames.length }));

@@ -7,8 +7,8 @@
     <meta name="theme-color" content="#0f1b33" />
     <title>GlarePilot — weather &amp; sun glare where and when you'll drive</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-CJka3LYD.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Dq_RHvLC.css">
+    <script type="module" crossorigin src="./assets/index-KHwlJ_SS.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BlFydSgw.css">
   </head>
   <body>
     <a class="skip-link" href="#results">Skip to results</a>
@@ -39,6 +39,17 @@
 
     <main class="shell">
       <aside class="side" aria-label="Trip planner">
+        <div class="mode-switch card" role="group" aria-label="Data mode">
+          <button type="button" class="mode-btn" data-mode="real" aria-pressed="true">Real-data planning<small>live routing + forecast</small></button>
+          <button type="button" class="mode-btn" data-mode="demo" aria-pressed="false">Manual demo scenarios<small>hand-set data · no API calls</small></button>
+        </div>
+
+        <section id="scenario-card" class="card scenario-card" aria-labelledby="scenario-title" hidden>
+          <h2 class="card-title" id="scenario-title">Manual demo scenarios</h2>
+          <p class="note">These use <strong>deliberately hand-set weather and delay values</strong> on a recorded real route, to show the features reproducibly. They are <strong>not</strong> forecasts or traffic data, and they make no network requests.</p>
+          <div id="scenarios" class="scenarios"></div>
+        </section>
+
         <form id="trip-form" class="card trip-card" novalidate>
           <h2 class="card-title">Plan a drive</h2>
           <div class="field combo" data-combo="origin">
@@ -81,6 +92,33 @@
               </select>
             </div>
           </div>
+          <fieldset class="assume">
+            <legend>Traffic delay assumption</legend>
+            <div class="row two">
+              <div class="field">
+                <label for="delay-min">Extra time</label>
+                <select id="delay-min">
+                  <option value="0">None (free-flow)</option>
+                  <option value="15">+15 min</option>
+                  <option value="30">+30 min</option>
+                  <option value="45">+45 min</option>
+                  <option value="60">+1 h</option>
+                  <option value="90">+1 h 30 min</option>
+                  <option value="120">+2 h</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="delay-where">Where</label>
+                <select id="delay-where">
+                  <option value="spread">Spread over trip</option>
+                  <option value="start">First quarter</option>
+                  <option value="middle" selected>Mid-route</option>
+                  <option value="end">Last quarter</option>
+                </select>
+              </div>
+            </div>
+            <p class="assume-note">No live or predicted traffic source is connected. This is your own assumption; every later point's arrival time, forecast hour and sun angle are recomputed with it.</p>
+          </fieldset>
           <div id="form-error" class="alert" role="alert" hidden></div>
           <button type="submit" id="plan" class="primary">
             <span class="btn-label">See my drive</span>
@@ -148,10 +186,17 @@
 
         <div id="result" hidden>
           <div id="snapshot-banner" class="banner" hidden></div>
+          <div id="prov" class="prov" role="note"></div>
           <div id="kpis" class="kpis"></div>
+
+          <div id="delay-card" class="card delay-card" hidden></div>
 
           <div class="card map-card">
             <div class="map-toolbar">
+              <div class="seg" role="group" aria-label="View">
+                <button type="button" class="seg-btn" data-view="2d" aria-pressed="true">2D overview</button>
+                <button type="button" class="seg-btn" data-view="3d" aria-pressed="false">3D chase preview</button>
+              </div>
               <div class="seg" role="group" aria-label="Map layer">
                 <button type="button" class="seg-btn" data-layer="glare" aria-pressed="true">Sun glare</button>
                 <button type="button" class="seg-btn" data-layer="weather" aria-pressed="false">Weather</button>
@@ -159,7 +204,29 @@
               </div>
               <div id="legend" class="legend" aria-label="Map legend"></div>
             </div>
-            <div id="map" role="region" aria-label="Route map"></div>
+            <div class="view-stage">
+              <div id="map" role="region" aria-label="Route map, north up"></div>
+              <div id="chase" class="chase" hidden>
+                <canvas tabindex="0" aria-label="3D chase preview of the planned route. Scroll, swipe or use arrow keys to look ahead or behind."></canvas>
+                <div class="chase-top">
+                  <span class="chase-tag">Simulated playback of the planned route · not GPS</span>
+                  <span class="chase-where" data-hud="where"></span>
+                </div>
+                <div class="chase-state" data-hud="state" aria-live="polite"></div>
+                <div class="chase-ahead" data-hud="ahead"></div>
+                <div class="chase-controls" role="group" aria-label="3D preview controls">
+                  <button type="button" class="chip-btn" data-act="play" aria-pressed="false">Play</button>
+                  <button type="button" class="chip-btn" data-act="back" aria-label="Look behind">◀</button>
+                  <button type="button" class="chip-btn" data-act="fwd" aria-label="Look ahead">▶</button>
+                  <button type="button" class="chip-btn" data-act="return" disabled>Return to playback position</button>
+                  <span class="chase-zoom"><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer">−</button><span data-hud="level">Near</span><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther">+</button></span>
+                </div>
+              </div>
+            </div>
+            <div class="cond-bar">
+              <div id="cond-legend" class="cond-legend" aria-label="Condition icon legend"></div>
+              <button type="button" id="motion" class="motion-btn" aria-pressed="true">Animation: on</button>
+            </div>
           </div>
 
           <div class="card timeline-card">

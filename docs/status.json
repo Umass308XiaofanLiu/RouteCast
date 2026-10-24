@@ -1,7 +1,7 @@
 {
   "project": "GlarePilot",
   "event": "Hackachusetts 2026 (deadline 2026-10-24 20:00 America/New_York, submit on SundAI)",
-  "updated": "2026-10-24T16:35:00-04:00",
+  "updated": "2026-10-24T17:10:00-04:00",
   "repo": "https://github.com/Umass308XiaofanLiu/glarepilot",
   "orchestration": {
     "main": "claude-opus-5.5 / xhigh, persistent atch session (unchanged)",
@@ -9,7 +9,11 @@
     "subagents": "native subagent tool available in this session"
   },
   "requirements_verified": {
-    "source": ["https://massaicoalition.com/hackachusetts/submitting-projects/", "https://docs.google.com/document/d/1aDagPzc29sNGHdycZ-30GMf2z-Np2SwqZX_hY46tLrQ (Submission Requirements)", "https://hackachusetts2026.vercel.app/#/civic"],
+    "source": [
+      "https://massaicoalition.com/hackachusetts/submitting-projects/",
+      "https://docs.google.com/document/d/1aDagPzc29sNGHdycZ-30GMf2z-Np2SwqZX_hY46tLrQ (Submission Requirements)",
+      "https://hackachusetts2026.vercel.app/#/civic"
+    ],
     "items": [
       "Submit on SundAI before 8 PM; GitHub push alone is not submission",
       "Team members (max 4) on SundAI",
@@ -24,16 +28,18 @@
   },
   "phases": {
     "core_engine": "done",
-    "ui": "done (first polished pass)",
-    "unit_tests": "27/27 pass",
-    "e2e": "pending",
-    "independent_review": "pending",
-    "docs_submission_pack": "pending",
-    "deploy": "pending (Cloudflare: no auth in env; GitHub Pages possible with gh)"
+    "ui": "done (polished, responsive, reviewed)",
+    "unit_tests": "29/29 pass (npm test)",
+    "e2e": "9/9 pass (npm run test:e2e, headless Chrome, recorded-response replay)",
+    "independent_review": "done by Kiro subagent: 4 major + 13 minor findings; majors and most minors fixed with regression tests",
+    "docs_submission_pack": "done: README.md, docs/SUBMISSION.md, docs/DEMO_SCRIPT.md, THIRD_PARTY_NOTICES.md",
+    "demo_video": "docs/media/glarepilot-demo.mp4 recorded from live site (needs public upload by human)",
+    "deploy": "GitHub Pages live https://umass308xiaofanliu.github.io/glarepilot/ ; Cloudflare not deployed (no Cloudflare auth in environment)"
   },
   "human_only": [
-    "SundAI login, team/registration fields, track selection and final Submit",
-    "Upload demo video to YouTube/Vimeo (public) and paste link",
-    "Cloudflare login/API token if Cloudflare Pages is preferred"
+    "SundAI login, team members, track selection (recommended Civic action V3) and final Submit before 8 PM ET",
+    "Upload docs/media/glarepilot-demo.mp4 (or own narrated video) publicly to YouTube/Vimeo and paste the link in SundAI and README",
+    "Optional: choose a project license",
+    "Optional: Cloudflare login (npx wrangler login) or API token if a Cloudflare Pages mirror is wanted"
   ]
 }

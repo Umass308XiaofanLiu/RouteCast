@@ -12,6 +12,6 @@
 - [x] 10. UI: form + combobox, presets, KPIs, map layers + legend, timeline + scrubber, compass, moment card, optimizer, table, provenance — R6
 - [x] 11. Recorded snapshots for offline demo and tests — R6.3
 - [x] 12. Unit, integration and property-based tests (node:test + fast-check)
-- [ ] 13. Browser E2E tests with screenshots (normal, glare/no-glare, night, invalid input, service failure, route change, mobile)
-- [ ] 14. Independent review and fixes
-- [ ] 15. Public demo deployment and submission pack
+- [x] 13. Browser E2E tests with screenshots (normal, glare/no-glare, night, invalid input, service failure, route change, mobile)
+- [x] 14. Independent review (Kiro subagent) and fixes: glare priority/muting, short-blip filtering, KPI wording, XSS escape, snapshot ids, abort races, horizon margin, a11y live region, mobile order
+- [x] 15. Public demo deployment (GitHub Pages) and submission pack (README, docs/SUBMISSION.md, docs/DEMO_SCRIPT.md, demo video)

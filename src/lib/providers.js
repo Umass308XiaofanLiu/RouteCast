@@ -21,6 +21,7 @@ export class ProviderError extends Error {
 }
 
 async function getJson(fetchImpl, url, provider, { timeoutMs = 20000, signal } = {}) {
+  if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(new Error('timeout')), timeoutMs);
   const onAbort = () => ctrl.abort(signal.reason);
@@ -176,10 +177,13 @@ function isoDate(ms) {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-/** Maximum forecast end date accepted by Open-Meteo (16 days including today). */
+/**
+ * Latest instant we request from Open-Meteo (it serves 16 days including today).
+ * One day of margin because start/end dates are interpreted in each point's local zone.
+ */
 export function forecastHorizonEnd(nowMs = Date.now()) {
   const d = new Date(nowMs);
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 15, 23);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 14, 23);
 }
 
 /** Hourly forecasts for many points in one request. Returns series in input order. */

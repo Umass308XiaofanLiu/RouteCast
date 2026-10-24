@@ -6,7 +6,7 @@
 - R1.3 Invalid input (same place, unknown place, departure in the past or beyond the forecast horizon) yields a clear inline error and no stale results.
 
 ## R2 Routed timing
-- R2.1 Route geometry and per-segment travel durations come from OSRM; arrival time at every sampled point is departure + cumulative routed duration (+ optional breaks).
+- R2.1 Route geometry and per-segment travel durations come from a routing engine (Valhalla, OSRM fallback); arrival time at every sampled point is departure + cumulative routed duration (+ optional breaks).
 - R2.2 Routing failure shows an error state; no straight-line substitute is presented as a route.
 
 ## R3 Time-aligned forecast

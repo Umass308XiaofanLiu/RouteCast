@@ -128,6 +128,7 @@ export function findWindows(rows, pred, maxGap = 1) {
 export function describeGlareWindow(model, ev, [a, b]) {
   let peak = a;
   let peakExpected = 0;
+  let strongMin = 0;
   let mutedCount = 0;
   let minAlt = Infinity;
   let maxAlt = -Infinity;
@@ -138,6 +139,7 @@ export function describeGlareWindow(model, ev, [a, b]) {
     if (r.glare.score > ev.rows[peak].glare.score) peak = i;
     peakExpected = Math.max(peakExpected, r.expected);
     if (r.muted) mutedCount++;
+    if (r.expected >= 2 && i < b) strongMin += (ev.rows[i + 1].t - r.t) / 60000;
     if (r.glare.severity > 0) {
       minAlt = Math.min(minAlt, r.sun.altitude);
       maxAlt = Math.max(maxAlt, r.sun.altitude);
@@ -158,6 +160,7 @@ export function describeGlareWindow(model, ev, [a, b]) {
     minutes: (endT - startT) / 60000 + 1,
     peakSeverity: pr.glare.severity,
     peakExpected,
+    strongMin,
     mutedShare: mutedCount / (b - a + 1),
     sunAltRange: [Math.max(minAlt, -0.8), maxAlt],
     minOffset: minOff,

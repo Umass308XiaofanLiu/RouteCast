@@ -32,12 +32,12 @@ export function compassSvg(row, sample) {
     <circle cx="${CX}" cy="${CY}" r="${R * (2 / 3)}" fill="none" stroke="#edf0f4"/>
     <circle cx="${CX}" cy="${CY}" r="${R / 3}" fill="none" stroke="#edf0f4"/>
     <path d="M${c1x},${c1y} A${R},${R} 0 0 1 ${c2x},${c2y} L${i2x},${i2y} A${rGlare},${rGlare} 0 0 0 ${i1x},${i1y} Z" fill="${C.g[2]}" opacity=".18"/>
-    <text x="${CX}" y="11" text-anchor="middle" font-size="10" fill="#637087" font-weight="700">AHEAD</text>
     <text x="${CX}" y="167" text-anchor="middle" font-size="10" fill="#637087">behind</text>
     <text x="${nx}" y="${ny + 3}" text-anchor="middle" font-size="9" fill="#1c7ed6" font-weight="700">N</text>
     <path d="M${CX},${CY - 14} l9,22 -9,-5 -9,5z" fill="${C.ink}"/>
     ${visible ? `<line x1="${CX}" y1="${CY}" x2="${sx}" y2="${sy}" stroke="${sunColor}" stroke-dasharray="3 3"/>` : ''}
     <circle cx="${sx}" cy="${sy}" r="${visible ? 9 : 7}" fill="${sunColor}" stroke="#fff" stroke-width="2" opacity="${visible ? 1 : 0.7}"/>
+    <text x="${CX}" y="10" text-anchor="middle" font-size="10" fill="#33415c" font-weight="700" stroke="#fff" stroke-width="3" paint-order="stroke">AHEAD</text>
   </svg>`;
 }
 

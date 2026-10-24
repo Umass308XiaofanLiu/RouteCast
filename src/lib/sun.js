@@ -58,12 +58,13 @@ export function cloudAdjustedSeverity(severity, wx) {
   const cloud = wx.cloudCover;
   const wet = (wx.precipitation ?? 0) >= 0.2;
   const fog = wx.visibility != null && wx.visibility < 2000;
-  if (cloud == null) return { severity, muted: false, reason: 'cloud cover unknown' };
+  if (cloud == null && !wet && !fog) return { severity, muted: false, reason: 'cloud cover unknown' };
   if (cloud >= 85 || wet || fog) {
-    return { severity: Math.max(0, severity - 2), muted: true, reason: `overcast (${Math.round(cloud)}% cloud)` };
+    const reason = wet ? 'precipitation in the forecast' : fog ? 'fog / low visibility in the forecast' : `overcast (${Math.round(cloud)}% cloud)`;
+    return { severity: Math.max(0, severity - 2), muted: true, reason };
   }
   if (cloud >= 60) {
     return { severity: Math.max(0, severity - 1), muted: true, reason: `mostly cloudy (${Math.round(cloud)}% cloud)` };
   }
-  return { severity, muted: false, reason: `${Math.round(cloud)}% cloud cover` };
+  return { severity, muted: false, reason: cloud == null ? 'cloud cover unknown' : `${Math.round(cloud)}% cloud cover` };
 }

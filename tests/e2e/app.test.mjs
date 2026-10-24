@@ -168,6 +168,19 @@ test('route change and controls: new destination, optimizer, units, layers, swap
   await page.close();
 });
 
+test('unknown snapshot id shows an error instead of a different trip', async () => {
+  const { page, errors } = await openPage(chrome.browser, srv.url, { query: 'snapshot=nope' });
+  await page.waitForSelector('#error:not([hidden])');
+  assert.match(await text(page, '#error-msg'), /no recorded snapshot called/);
+  const ok = await openPage(chrome.browser, srv.url, { query: 'snapshot=albany-boston' });
+  await waitResult(ok.page);
+  assert.match(await text(ok.page, '#kpis'), /Boston, MA/);
+  assert.match(await text(ok.page, '#provenance'), /Recorded snapshot/);
+  assert.deepEqual([...errors, ...ok.errors], []);
+  await page.close();
+  await ok.page.close();
+});
+
 test('mobile layout: no horizontal overflow, stacked layout, readable result', async () => {
   const { page, errors } = await openPage(chrome.browser, srv.url, { mobile: true });
   await shot(page, 'e2e-mobile-empty');
@@ -186,6 +199,8 @@ test('mobile layout: no horizontal overflow, stacked layout, readable result', a
   assert.ok(m.map.height >= 250, 'map has a usable height');
   assert.ok(m.btn >= 44, 'primary button is a comfortable tap target');
   assert.ok(m.seg >= 24);
+  const order = await page.evaluate(() => ['.trip-card', '#kpis', '#advice-card'].map((q) => document.querySelector(q).getBoundingClientRect().top + window.scrollY));
+  assert.ok(order[0] < order[1] && order[1] < order[2], 'mobile order: form, results, advice');
   await page.evaluate(() => window.scrollTo(0, 0));
   await shot(page, 'e2e-mobile-result', true);
   assert.deepEqual(errors, []);

@@ -209,3 +209,26 @@ test('advice: synthetic snow/wind/night trip triggers the expected rules', () =>
   assert.ok(!kinds.has('glare'), 'no glare at night');
   assert.equal(recs[0].priority, 'high');
 });
+
+test('review fixes: long severe sunset window outranks short blips and is not called "softened"', () => {
+  const s = snap('amherst-chicago.json');
+  const model = fromSnapshot(s, places);
+  const opt = optimizeDeparture(model, s.departureUtc, {}, { nowMs: s.capturedAt });
+  const recs = buildAdvice(model, opt.base, { optimizer: opt, unitsFmt: makeFormatter('us') });
+  const glare = recs.filter((r) => r.kind === 'glare');
+  assert.ok(glare.length >= 1);
+  const top = glare[0];
+  const mins = (r) => (opt.base.rows[r.range[1]].t - opt.base.rows[r.range[0]].t) / 60000;
+  assert.ok(glare.every((g) => mins(g) <= mins(top) || g.priority !== top.priority), 'longest/most exposed glare window first');
+  for (const g of glare) {
+    if (g.severity >= 2) assert.ok(!/soften this/.test(g.actions.join(' ')), 'strong expected glare keeps full glare actions');
+    assert.ok(g.priority === 'high' ? g.severity >= 2 : true);
+  }
+});
+
+test('review fixes: cloud reason names the real cause', async () => {
+  const { cloudAdjustedSeverity } = await import('../../src/lib/sun.js');
+  assert.match(cloudAdjustedSeverity(3, { cloudCover: 20, precipitation: 1 }).reason, /precipitation/);
+  assert.match(cloudAdjustedSeverity(3, { cloudCover: 20, precipitation: 0, visibility: 500 }).reason, /fog/);
+  assert.equal(cloudAdjustedSeverity(2, { cloudCover: null, precipitation: 0 }).reason, 'cloud cover unknown');
+});

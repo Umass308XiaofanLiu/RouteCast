@@ -1,0 +1,90 @@
+# Third-party notices
+
+GlarePilot's own code is not yet under a chosen license (see README). This file lists third-party software bundled in or used to build the app, and the data services it uses.
+
+## Runtime libraries bundled into the build
+
+| Package | Version | License | Source |
+|---|---|---|---|
+| Leaflet | 1.9.4 | BSD-2-Clause | https://github.com/Leaflet/Leaflet |
+| SunCalc | 1.9.0 | BSD-2-Clause (from the package's LICENSE file) | https://github.com/mourner/suncalc |
+
+### Leaflet 1.9.4 — `node_modules/leaflet/LICENSE`
+
+```
+BSD 2-Clause License
+
+Copyright (c) 2010-2023, Volodymyr Agafonkin
+Copyright (c) 2010-2011, CloudMade
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+### SunCalc 1.9.0 — `node_modules/suncalc/LICENSE`
+
+```
+Copyright (c) 2014, Vladimir Agafonkin
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are
+permitted provided that the following conditions are met:
+
+   1. Redistributions of source code must retain the above copyright notice, this list of
+      conditions and the following disclaimer.
+
+   2. Redistributions in binary form must reproduce the above copyright notice, this list
+      of conditions and the following disclaimer in the documentation and/or other materials
+      provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+## Development-only tools (not shipped in `dist/`)
+
+| Package | Version | License (from its package.json) |
+|---|---|---|
+| Vite | 5.4.10 | MIT |
+| fast-check | 3.23.2 | MIT |
+| puppeteer-core | 23.11.1 | Apache-2.0 |
+
+Their transitive dependencies are listed in `package-lock.json` and carry their own licenses.
+
+## Data and services
+
+| Service / data | Used for | Terms |
+|---|---|---|
+| [Open-Meteo](https://open-meteo.com/) Forecast API and Geocoding API | Hourly weather forecasts; US place search with IANA time zones | Data licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); attribution "Weather data by Open-Meteo.com". Free API intended for non-commercial use, subject to Open-Meteo's terms and rate limits |
+| [OpenStreetMap](https://www.openstreetmap.org/copyright) | Map tiles (tile.openstreetmap.org) and the road data behind both routing engines | Map data © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/). Tile use follows the [OSM Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/) (light use, attribution, no bulk downloading) |
+| [GeoNames](https://www.geonames.org/) | `src/data/us_places.json` — bundled US place names/coordinates for "near …" labels | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| [Valhalla](https://valhalla.github.io/valhalla/) on the FOSSGIS public server (`valhalla1.openstreetmap.de`) | Primary driving route and routed travel times | Valhalla is MIT-licensed open-source software; the free public server is operated by FOSSGIS e.V. under its usage policy (fair use, no heavy traffic) |
+| [OSRM](https://project-osrm.org/) demo server (`router.project-osrm.org`) | Fallback driving route | OSRM is BSD-2-Clause software; the demo server is for light, non-production use under its usage policy |
+
+The app shows these attributions in its footer and the Leaflet attribution control.

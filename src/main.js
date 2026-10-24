@@ -105,7 +105,7 @@ async function readForm() {
   if (dep == null) throw Object.assign(new Error('Enter a departure date and time.'), { field: 'departure' });
   if (dep < Date.now() - 15 * 60e3) throw Object.assign(new Error('That departure time is in the past. GlarePilot plans upcoming drives.'), { field: 'departure' });
   if (dep > forecastHorizonEnd() - 36 * 3600e3) {
-    throw Object.assign(new Error('Forecasts only reach about two weeks ahead. Pick a departure within the next 14 days.'), { field: 'departure' });
+    throw Object.assign(new Error('Forecasts only reach about two weeks ahead. Pick a departure within the next 13 days.'), { field: 'departure' });
   }
   return { origin, dest, departureUtc: dep, vehicle: $('vehicle').value, breaks: $('breaks').value };
 }
@@ -114,6 +114,7 @@ async function readForm() {
 function show(view) {
   for (const id of ['empty', 'loading', 'error', 'result']) $(id).hidden = id !== view;
   $('advice-card').hidden = view !== 'result';
+  document.body.classList.toggle('has-result', view === 'result');
 }
 function setBusy(busy) {
   const b = $('plan');
@@ -171,6 +172,7 @@ async function plan(req) {
 
 function friendlyError(e) {
   const m = e?.message || String(e);
+  if (/horizon/i.test(m)) return 'This trip is beyond the forecast horizon (about two weeks). Pick an earlier departure.';
   if (/No driving route/.test(m)) return 'No driving route was found between these places (the public routing servers may also be busy). Check the places or try again in a moment.';
   if (/forecast/i.test(m)) return `The forecast service did not respond (${m}). Try again, or open a recorded snapshot to explore the demo offline.`;
   return m;
@@ -240,7 +242,7 @@ function renderProvenance() {
 }
 
 function kpi(cls, label, value, sub) {
-  return `<div class="kpi ${cls}"><div class="k-label">${label}</div><div class="k-value">${value}</div><div class="k-sub">${sub}</div></div>`;
+  return `<div class="kpi ${cls}"><div class="k-label">${esc(label)}</div><div class="k-value">${esc(value)}</div><div class="k-sub">${esc(sub)}</div></div>`;
 }
 
 function renderKpis() {
@@ -252,7 +254,14 @@ function renderKpis() {
   $('kpis').innerHTML = [
     kpi('time', 'Drive', formatDuration(ev.driveSec, { compact: true }), `${fmt.dist(model.route.totalDistM)} · ${breaksNote}`),
     kpi('time', 'Arrive', formatClock(ev.arrivalUtc, model.destTz, { weekday: false }), `${new Intl.DateTimeFormat('en-US', { timeZone: model.destTz, weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(ev.arrivalUtc))} · ${model.destLabel}`),
-    kpi('glare', 'Sun glare', glareStrong >= 1 ? `${Math.round(glareStrong)} min` : glareGeo >= 1 ? 'Mild only' : 'None', glareGeo >= 1 ? `${Math.round(glareGeo)} min sun in view` : 'sun never in your eyes'),
+    kpi(
+      'glare',
+      'Sun glare',
+      glareStrong >= 1 ? `${Math.round(glareStrong)} min` : t.glareMin[2] + t.glareMin[3] >= 1 ? 'Cloud-softened' : glareGeo >= 1 ? 'Mild only' : 'None',
+      glareStrong >= 1 || glareGeo < 1
+        ? glareGeo >= 1 ? `strong/severe · ${Math.round(glareGeo)} min sun in view` : 'sun never in your eyes'
+        : t.glareMin[2] + t.glareMin[3] >= 1 ? `${Math.round(t.glareMin[2] + t.glareMin[3])} min strong sun angle, clouds forecast` : `${Math.round(glareGeo)} min sun in view`
+    ),
     kpi('night', 'After dark', ev.totals.nightMin >= 1 ? formatDuration(ev.totals.nightMin * 60, { compact: true }) : 'None', `${Math.round((ev.totals.nightMin / (ev.driveSec / 60)) * 100)}% of the drive`),
     kpi('wet', 'Wet / snowy', t.wetMin >= 1 ? formatDuration(t.wetMin * 60, { compact: true }) : 'Dry', t.snowMin >= 1 ? `${Math.round(t.snowMin)} min snow/ice` : t.missingMin > 1 ? `${Math.round(t.missingMin)} min no forecast` : 'forecast precipitation'),
     kpi('temp', 'Temperature', ev.minTemp == null ? '—' : `${fmt.temp(ev.minTemp)} – ${fmt.temp(ev.maxTemp)}`, ev.maxCrossMph ? `crosswind gusts to ${fmt.speedMph(ev.maxCrossMph)}` : ''),
@@ -455,24 +464,35 @@ function runPreset(id) {
 }
 
 async function openSnapshot(id = PRESETS[0].id) {
-  const p = PRESETS.find((x) => x.id === id) || PRESETS[0];
+  const p = PRESETS.find((x) => x.id === id || x.snapshot === `${id}.json`);
   state.inflight?.abort();
+  const ctrl = new AbortController();
+  state.inflight = ctrl;
   showFormError('');
+  setBusy(true);
   show('loading');
   setStage('compute');
   try {
-    const res = await fetch(`${import.meta.env.BASE_URL}fixtures/${p.snapshot}`);
+    if (!p) throw new Error(`there is no recorded snapshot called “${id}”. Available: ${PRESETS.map((x) => x.id).join(', ')}`);
+    const res = await fetch(`${import.meta.env.BASE_URL}fixtures/${p.snapshot}`, { signal: ctrl.signal });
     if (!res.ok) throw new Error(`Snapshot file missing (HTTP ${res.status})`);
     const snap = await res.json();
     const model = fromSnapshot(snap, places);
+    if (ctrl.signal.aborted) return;
     state.model = model;
     fillForm(model.origin, model.dest, snap.departureUtc);
     show('result');
     evaluate(snap.departureUtc, { fit: true });
     focusResults();
   } catch (e) {
+    if (ctrl.signal.aborted) return;
     $('error-msg').textContent = `Could not open the recorded snapshot: ${e.message}`;
     show('error');
+  } finally {
+    if (state.inflight === ctrl) {
+      state.inflight = null;
+      setBusy(false);
+    }
   }
 }
 $('use-snapshot').addEventListener('click', () => openSnapshot());

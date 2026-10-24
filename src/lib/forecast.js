@@ -15,8 +15,8 @@ function lerp(a, b, f) {
 }
 
 /**
- * Value of a forecast series at instant t (ms). Returns null outside the covered window,
- * never an extrapolated or invented value.
+ * Value of a forecast series at instant t (ms). Returns null outside the covered window
+ * (within 30 min of either edge the edge value is held; nothing is extrapolated or invented).
  */
 export function lookupForecast(series, t) {
   const times = series?.times;
@@ -36,7 +36,8 @@ export function lookupForecast(series, t) {
   const nearest = f < 0.5 ? i : i + 1;
   const out = { validTime: times[nearest], precipValidEnd: times[k] };
   for (const v of INSTANT) out[v] = lerp(series[v]?.[i] ?? null, series[v]?.[i + 1] ?? null, f);
-  for (const v of PRECEDING) out[v] = series[v]?.[k] ?? null;
+  // A preceding-hour bin only exists for instants up to the last timestamp.
+  for (const v of PRECEDING) out[v] = t > last ? null : series[v]?.[k] ?? null;
   out.windDirection = series.windDirection?.[nearest] ?? null; // circular: nearest, not interpolated
   out.weatherCode = series.weatherCode?.[nearest] ?? null;
   if (out.temperature == null && out.precipitation == null && out.weatherCode == null) return null;

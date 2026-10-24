@@ -41,26 +41,27 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
   // 1. Sun glare windows.
   for (const w of ev.windows.glare) {
     const d = describeGlareWindow(model, ev, w);
-    if (d.peakSeverity < 2 && d.minutes < 4) continue;
+    if ((d.peakSeverity < 2 && d.minutes < 4) || (d.minutes < 3 && d.peakExpected < 3)) continue;
     const s = span(ev, model, w);
     const dir = compass(d.heading);
     const kindLabel = d.kind === 'sunrise' ? 'sunrise' : 'sunset';
     const expectedLabel = ['no', 'mild', 'strong', 'severe'][d.peakExpected];
     const geomLabel = ['no', 'mild', 'strong', 'severe'][d.peakSeverity];
-    const muted = d.mutedShare > 0.5;
+    const muted = d.peakExpected < d.peakSeverity;
     const cloudTxt = d.avgCloud == null ? 'cloud cover not in forecast' : `forecast cloud cover ~${Math.round(d.avgCloud)}%`;
     recs.push({
       id: `glare-${w[0]}`,
       kind: 'glare',
-      priority: muted ? (d.peakSeverity >= 3 ? 'medium' : 'info') : d.peakSeverity >= 2 ? 'high' : 'medium',
+      priority: d.peakExpected >= 2 ? 'high' : d.peakSeverity >= 2 ? 'medium' : 'info',
       severity: d.peakExpected,
+      weight: d.strongMin * 2 + d.minutes * 0.2,
       title: `${dir}-bound ${kindLabel} glare ${d.where.near ? d.where.near : ''}`.trim(),
       when: `${s.when} (${formatDuration(s.minutes * 60)})`,
       where: s.where === s.whereEnd ? s.where : `${s.where} → ${s.whereEnd}`,
-      why: `Sun ${Math.max(0, d.sunAltRange[0]).toFixed(0)}–${d.sunAltRange[1].toFixed(0)}° above the horizon and as close as ${d.minOffset.toFixed(0)}° to your heading (${dir}). Geometric risk: ${geomLabel}; ${cloudTxt}${muted ? `, so expected glare is ${expectedLabel}` : ''}.`,
-      actions: muted
+      why: `Sun ${Math.max(0, d.sunAltRange[0]).toFixed(0)}–${d.sunAltRange[1].toFixed(0)}° above the horizon and as close as ${d.minOffset.toFixed(0)}° to your heading (${dir}). Geometric risk: ${geomLabel}; ${cloudTxt}${muted ? `, so expected glare is ${expectedLabel}` : ''}.${d.strongMin >= 1 && d.minutes - d.strongMin >= 10 ? ` Expected strong/severe glare for about ${Math.round(d.strongMin)} min of this ${formatDuration(d.minutes * 60)} stretch; the rest is milder.` : ''}`,
+      actions: d.peakExpected <= 1 && muted
         ? ['Clouds will likely soften this, but keep sunglasses handy in case they break.']
-        : glareActions(d.peakSeverity, vehicle, d.kind),
+        : glareActions(d.peakExpected, vehicle, d.kind),
       focus: d.peak,
       range: w,
     });
@@ -96,6 +97,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
     }
     recs.push({
       id: `snow-${w[0]}`,
+      weight: s.minutes,
       kind: 'snow',
       priority: 'high',
       title: r.hz.ice ? 'Freezing precipitation / ice risk' : 'Snow on the route',
@@ -126,6 +128,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
     if (s.minutes < 5 && !heavy) continue;
     recs.push({
       id: `rain-${w[0]}`,
+      weight: s.minutes,
       kind: 'rain',
       priority: heavy ? 'high' : 'medium',
       title: heavy ? 'Heavy rain on the route' : 'Rain on the route',
@@ -147,6 +150,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
     for (let i = w[0]; i <= w[1]; i++) if (ev.rows[i].wx?.visibility != null) minVis = Math.min(minVis, ev.rows[i].wx.visibility);
     recs.push({
       id: `vis-${w[0]}`,
+      weight: s.minutes,
       kind: 'visibility',
       priority: 'high',
       title: 'Low visibility (fog or heavy precipitation)',
@@ -182,12 +186,13 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
     const r = ev.rows[peak];
     recs.push({
       id: `wind-${w[0]}`,
+      weight: s.minutes,
       kind: 'wind',
       priority: 'medium',
       title: `Strong crosswind gusts from the ${r.hz.cross.side}`,
       when: `${s.when} (${formatDuration(s.minutes * 60)})`,
       where: `${s.where} → ${s.whereEnd}`,
-      why: `Gusts ${fmt.speed(r.wx.windGusts)} from ${compass(r.wx.windDirection)} give a ~${fmt.speedMph(r.hz.crossMph)} crosswind component at your ${compass(model.samples[peak].heading)} heading.`,
+      why: `${r.wx.windGusts == null ? 'Wind' : 'Gusts'} ${fmt.speed(r.wx.windGusts ?? r.wx.windSpeed)} from ${compass(r.wx.windDirection)} give a ~${fmt.speedMph(r.hz.crossMph)} crosswind component at your ${compass(model.samples[peak].heading)} heading.`,
       actions:
         vehicle === 'high-profile'
           ? ['High-profile vehicles are most affected: slow down, keep both hands on the wheel, be careful on bridges and open stretches.']
@@ -211,7 +216,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
       when: s.when,
       where: s.where,
       why: `Sun more than 6° below the horizon for ${Math.round(nightShare * 100)}% of the drive.`,
-      actions: ['Watch for deer around dusk and dawn, especially in rural New England and the Midwest in autumn.', 'Dim dashboard lights and keep the windshield clean to cut glare from headlights.'],
+      actions: ['Watch for deer around dusk and dawn, especially on rural roads.', 'Dim dashboard lights and keep the windshield clean to cut glare from headlights.'],
       focus: w[0],
       range: w,
     });
@@ -295,6 +300,7 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
     if (Math.round(c.snowMin) !== Math.round(b.snowMin)) deltas.push(`snow/ice ${Math.round(c.snowMin)} → ${Math.round(b.snowMin)} min`);
     if (Math.round(c.windMin) !== Math.round(b.windMin)) deltas.push(`strong crosswind ${Math.round(c.windMin)} → ${Math.round(b.windMin)} min`);
     if (Math.round(c.nightMin) !== Math.round(b.nightMin)) deltas.push(`after dark ${Math.round(c.nightMin)} → ${Math.round(b.nightMin)} min`);
+    if (!deltas.length) deltas.push('fewer weighted minutes of mild glare, low visibility or storms');
     recs.push({
       id: 'optimizer',
       kind: 'depart',
@@ -310,6 +316,6 @@ export function buildAdvice(model, ev, { vehicle = 'car', optimizer = null, unit
     });
   }
 
-  recs.sort((x, y) => PRIORITY[x.priority] - PRIORITY[y.priority] || (y.severity ?? 0) - (x.severity ?? 0));
+  recs.sort((x, y) => PRIORITY[x.priority] - PRIORITY[y.priority] || (y.weight ?? 0) - (x.weight ?? 0) || (y.severity ?? 0) - (x.severity ?? 0));
   return recs;
 }

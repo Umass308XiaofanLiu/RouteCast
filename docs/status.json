@@ -1,0 +1,39 @@
+{
+  "project": "GlarePilot",
+  "event": "Hackachusetts 2026 (deadline 2026-10-24 20:00 America/New_York, submit on SundAI)",
+  "updated": "2026-10-24T16:35:00-04:00",
+  "repo": "https://github.com/Umass308XiaofanLiu/glarepilot",
+  "orchestration": {
+    "main": "claude-opus-5.5 / xhigh, persistent atch session (unchanged)",
+    "workflows": "chat.enableWorkflows=true saved; NOT active in this V2 session. A bounded child --v3 probe started KAS 0.66.62 and loaded workflow recipe catalogs, but did not expose a usable workflow tool to this session.",
+    "subagents": "native subagent tool available in this session"
+  },
+  "requirements_verified": {
+    "source": ["https://massaicoalition.com/hackachusetts/submitting-projects/", "https://docs.google.com/document/d/1aDagPzc29sNGHdycZ-30GMf2z-Np2SwqZX_hY46tLrQ (Submission Requirements)", "https://hackachusetts2026.vercel.app/#/civic"],
+    "items": [
+      "Submit on SundAI before 8 PM; GitHub push alone is not submission",
+      "Team members (max 4) on SundAI",
+      "Built with Kiro; Kiro usage write-up",
+      "Challenge track identified (Civic action recommended: V3 Safer and connected places)",
+      "Text description of features",
+      "Demo video < 3 min, public on YouTube/Vimeo/Facebook/Youku, link on form",
+      "Public GitHub repo with source + instructions",
+      ".kiro directory at repo root, not gitignored",
+      "Working demo link for testing, free of charge"
+    ]
+  },
+  "phases": {
+    "core_engine": "done",
+    "ui": "done (first polished pass)",
+    "unit_tests": "27/27 pass",
+    "e2e": "pending",
+    "independent_review": "pending",
+    "docs_submission_pack": "pending",
+    "deploy": "pending (Cloudflare: no auth in env; GitHub Pages possible with gh)"
+  },
+  "human_only": [
+    "SundAI login, team/registration fields, track selection and final Submit",
+    "Upload demo video to YouTube/Vimeo (public) and paste link",
+    "Cloudflare login/API token if Cloudflare Pages is preferred"
+  ]
+}

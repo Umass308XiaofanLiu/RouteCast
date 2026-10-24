@@ -1,0 +1,171 @@
+// trip.js — evaluate a routed trip for a departure time.
+import { sunPosition, lightPhase, geometricGlare, cloudAdjustedSeverity } from './sun.js';
+import { lookupForecast } from './forecast.js';
+import { hazards } from './weather.js';
+import { nearestPlace } from './geo.js';
+
+export const BREAK_PLANS = {
+  none: { label: 'No breaks', everySec: 0, durationSec: 0 },
+  short: { label: '15 min every 2 h', everySec: 7200, durationSec: 900 },
+  long: { label: '30 min every 3 h', everySec: 10800, durationSec: 1800 },
+};
+
+/** Elapsed trip seconds after `driveSec` of driving, including completed breaks. */
+export function elapsedWithBreaks(driveSec, totalDriveSec, plan = BREAK_PLANS.none) {
+  if (!plan?.everySec) return driveSec;
+  // A break is taken after each full interval, but never at (or after) arrival.
+  const taken = Math.floor(Math.min(driveSec, Math.max(0, totalDriveSec - 1)) / plan.everySec);
+  const before = Math.floor(driveSec / plan.everySec);
+  return driveSec + Math.min(taken, before) * plan.durationSec;
+}
+
+/** Human label for a point: "I 90 West near Toledo, OH". */
+export function placeLabel(model, sample) {
+  const place = nearestPlace(model.places, sample.lat, sample.lon);
+  const road = model.route.roads.find((r) => sample.distM >= r.fromM && sample.distM <= r.toM)?.name;
+  let near = '';
+  if (place) {
+    const mi = place.distM / 1609.344;
+    near = mi < 8 ? `near ${place.name}, ${place.state}` : `${Math.round(mi)} mi from ${place.name}, ${place.state}`;
+  }
+  return { road: road || null, near, text: [road, near].filter(Boolean).join(' · ') || `${sample.lat.toFixed(2)}, ${sample.lon.toFixed(2)}` };
+}
+
+/**
+ * Evaluate every route sample for a departure (UTC ms).
+ * model = { route, samples, pointIdx, sampleToPoint, forecasts, places }
+ */
+export function evaluateTrip(model, departureUtc, { breakPlan = BREAK_PLANS.none, vehicle = 'car' } = {}) {
+  const { samples, sampleToPoint, forecasts } = model;
+  const totalDrive = samples[samples.length - 1].driveSec;
+  const rows = new Array(samples.length);
+  const totals = { glareMin: [0, 0, 0, 0], expectedGlareMin: [0, 0, 0, 0], rearMin: 0, nightMin: 0, twilightMin: 0, wetMin: 0, snowMin: 0, iceMin: 0, lowVisMin: 0, windMin: 0, stormMin: 0, heavyRainMin: 0, missingMin: 0 };
+  let minTemp = Infinity;
+  let maxTemp = -Infinity;
+  let maxCrossMph = 0;
+  let maxCrossIdx = -1;
+  for (let s = 0; s < samples.length; s++) {
+    const smp = samples[s];
+    const t = departureUtc + elapsedWithBreaks(smp.driveSec, totalDrive, breakPlan) * 1000;
+    const sun = sunPosition(t, smp.lat, smp.lon);
+    const phase = lightPhase(sun.altitude);
+    const g = geometricGlare(sun.altitude, sun.azimuth, smp.heading);
+    const series = forecasts[sampleToPoint[s]];
+    const wx = lookupForecast(series, t);
+    const adj = cloudAdjustedSeverity(g.severity, wx);
+    const hz = hazards(wx, smp.heading, vehicle);
+    rows[s] = { t, sun, phase, glare: g, expected: adj.severity, muted: adj.muted, mutedReason: adj.reason, wx, hz, timezone: series?.timezone };
+    // Minutes represented by this sample: half the driving gap to each neighbor.
+    const prev = s > 0 ? samples[s - 1].driveSec : smp.driveSec;
+    const next = s < samples.length - 1 ? samples[s + 1].driveSec : smp.driveSec;
+    const min = (next - prev) / 2 / 60;
+    totals.glareMin[g.severity] += min;
+    totals.expectedGlareMin[adj.severity] += min;
+    if (g.rear) totals.rearMin += min;
+    if (phase === 'night') totals.nightMin += min;
+    if (phase === 'twilight') totals.twilightMin += min;
+    if (!wx) totals.missingMin += min;
+    if (hz.wet) totals.wetMin += min;
+    if (hz.snow) totals.snowMin += min;
+    if (hz.ice) totals.iceMin += min;
+    if (hz.lowVis) totals.lowVisMin += min;
+    if (hz.windy) totals.windMin += min;
+    if (hz.storm) totals.stormMin += min;
+    if (hz.heavyRain) totals.heavyRainMin += min;
+    if (wx?.temperature != null) {
+      minTemp = Math.min(minTemp, wx.temperature);
+      maxTemp = Math.max(maxTemp, wx.temperature);
+    }
+    if (hz.crossMph > maxCrossMph) {
+      maxCrossMph = hz.crossMph;
+      maxCrossIdx = s;
+    }
+  }
+  const arrivalUtc = rows[rows.length - 1].t;
+  return {
+    departureUtc,
+    arrivalUtc,
+    elapsedSec: (arrivalUtc - departureUtc) / 1000,
+    driveSec: totalDrive,
+    rows,
+    totals,
+    minTemp: Number.isFinite(minTemp) ? minTemp : null,
+    maxTemp: Number.isFinite(maxTemp) ? maxTemp : null,
+    maxCrossMph,
+    maxCrossIdx,
+    windows: {
+      glare: findWindows(rows, (r) => r.glare.severity > 0, 8),
+      rear: findWindows(rows, (r) => r.glare.rear, 5),
+      wet: findWindows(rows, (r) => r.hz.wet || r.hz.snow, 5),
+      snow: findWindows(rows, (r) => r.hz.snow || r.hz.ice),
+      wind: findWindows(rows, (r) => r.hz.windy),
+      lowVis: findWindows(rows, (r) => r.hz.lowVis),
+      night: findWindows(rows, (r) => r.phase === 'night'),
+      missing: findWindows(rows, (r) => !r.wx),
+    },
+  };
+}
+
+/** Group consecutive rows matching `pred` into [start, end] index windows; tolerate 1-sample gaps. */
+export function findWindows(rows, pred, maxGap = 1) {
+  const out = [];
+  let start = -1;
+  let lastHit = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (pred(rows[i])) {
+      if (start < 0) start = i;
+      lastHit = i;
+    } else if (start >= 0 && i - lastHit > maxGap) {
+      out.push([start, lastHit]);
+      start = -1;
+    }
+  }
+  if (start >= 0) out.push([start, lastHit]);
+  return out;
+}
+
+/** Summary of a glare window for display and advice. */
+export function describeGlareWindow(model, ev, [a, b]) {
+  let peak = a;
+  let peakExpected = 0;
+  let mutedCount = 0;
+  let minAlt = Infinity;
+  let maxAlt = -Infinity;
+  let minOff = Infinity;
+  const clouds = [];
+  for (let i = a; i <= b; i++) {
+    const r = ev.rows[i];
+    if (r.glare.score > ev.rows[peak].glare.score) peak = i;
+    peakExpected = Math.max(peakExpected, r.expected);
+    if (r.muted) mutedCount++;
+    if (r.glare.severity > 0) {
+      minAlt = Math.min(minAlt, r.sun.altitude);
+      maxAlt = Math.max(maxAlt, r.sun.altitude);
+      minOff = Math.min(minOff, r.glare.offset);
+    }
+    if (r.wx?.cloudCover != null) clouds.push(r.wx.cloudCover);
+  }
+  const startT = ev.rows[a].t;
+  const endT = ev.rows[b].t;
+  const pr = ev.rows[peak];
+  const sunrise = pr.sun.azimuth < 180;
+  return {
+    a,
+    b,
+    peak,
+    startT,
+    endT,
+    minutes: (endT - startT) / 60000 + 1,
+    peakSeverity: pr.glare.severity,
+    peakExpected,
+    mutedShare: mutedCount / (b - a + 1),
+    sunAltRange: [Math.max(minAlt, -0.8), maxAlt],
+    minOffset: minOff,
+    avgCloud: clouds.length ? clouds.reduce((x, y) => x + y, 0) / clouds.length : null,
+    kind: sunrise ? 'sunrise' : 'sunset',
+    heading: model.samples[peak].heading,
+    timezone: pr.timezone,
+    where: placeLabel(model, model.samples[peak]),
+    startWhere: placeLabel(model, model.samples[a]),
+  };
+}

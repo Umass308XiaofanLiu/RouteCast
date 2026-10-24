@@ -3,59 +3,205 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GlarePilot — Drive-time weather & sun-glare companion</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="description" content="GlarePilot shows the forecast weather and sun glare at the places and times you will actually drive through." />
+    <meta name="theme-color" content="#0f1b33" />
+    <title>GlarePilot — weather &amp; sun glare where and when you'll drive</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   </head>
   <body>
-    <div id="app">
-      <header class="topbar">
-        <div class="brand">
-          <span class="logo">🌅</span>
-          <div>
-            <h1>GlarePilot</h1>
-            <p class="tagline">Know the weather &amp; sun glare for <em>where</em> and <em>when</em> you'll actually be.</p>
+    <a class="skip-link" href="#results">Skip to results</a>
+    <header class="appbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+          <defs>
+            <linearGradient id="bm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd166" /><stop offset="1" stop-color="#ff7a45" /></linearGradient>
+          </defs>
+          <circle cx="24" cy="22" r="10" fill="url(#bm)" />
+          <path d="M4 34h40" stroke="#ffd166" stroke-width="2.5" stroke-linecap="round" opacity=".55" />
+          <path d="M18 46l4-12h4l4 12" fill="#2b3a5c" />
+          <path d="M24 37v3M24 43v2" stroke="#ffd166" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+        <div>
+          <h1>GlarePilot</h1>
+          <p class="tagline">Weather and sun glare where — and <em>when</em> — you'll actually drive.</p>
+        </div>
+      </div>
+      <div class="appbar-actions">
+        <span id="provenance" class="badge" hidden></span>
+        <div class="seg" role="group" aria-label="Units">
+          <button type="button" class="seg-btn" data-units="us" aria-pressed="true">°F · mi</button>
+          <button type="button" class="seg-btn" data-units="metric" aria-pressed="false">°C · km</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <aside class="side" aria-label="Trip planner">
+        <form id="trip-form" class="card trip-card" novalidate>
+          <h2 class="card-title">Plan a drive</h2>
+          <div class="field combo" data-combo="origin">
+            <label for="origin-input">From</label>
+            <input id="origin-input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-list" placeholder="City, e.g. Amherst, MA" />
+            <ul id="origin-list" class="combo-list" role="listbox" hidden></ul>
+            <p class="hint" id="origin-hint"></p>
+          </div>
+          <button type="button" id="swap" class="swap" aria-label="Swap origin and destination" title="Swap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v14m0 0l-3-3m3 3l3-3M17 20V6m0 0l-3 3m3-3l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
+          <div class="field combo" data-combo="dest">
+            <label for="dest-input">To</label>
+            <input id="dest-input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dest-list" placeholder="City, e.g. Chicago, IL" />
+            <ul id="dest-list" class="combo-list" role="listbox" hidden></ul>
+            <p class="hint" id="dest-hint"></p>
+          </div>
+          <div class="field">
+            <label for="departure">Departure <span class="label-note" id="departure-tz">(origin local time)</span></label>
+            <div class="row">
+              <input id="departure" type="datetime-local" step="900" />
+              <button type="button" class="ghost small" id="depart-now">Now</button>
+            </div>
+          </div>
+          <div class="row two">
+            <div class="field">
+              <label for="vehicle">Vehicle</label>
+              <select id="vehicle">
+                <option value="car">Car / SUV</option>
+                <option value="high-profile">Van, truck or RV</option>
+                <option value="motorcycle">Motorcycle</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="breaks">Breaks</label>
+              <select id="breaks">
+                <option value="none">None</option>
+                <option value="short">15 min / 2 h</option>
+                <option value="long">30 min / 3 h</option>
+              </select>
+            </div>
+          </div>
+          <div id="form-error" class="alert" role="alert" hidden></div>
+          <button type="submit" id="plan" class="primary">
+            <span class="btn-label">See my drive</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </form>
+
+
+        <section id="advice-card" class="card advice-card" aria-labelledby="advice-title" hidden>
+          <h2 class="card-title" id="advice-title">What to expect &amp; what to do</h2>
+          <ol id="advice" class="advice"></ol>
+          <p class="fineprint">Guidance comes from a transparent rules engine using the forecast and sun geometry shown here. It is a planning aid, not a safety guarantee — follow road signs, official alerts and your own judgment.</p>
+        </section>
+
+        <section class="card presets-card" aria-labelledby="presets-title">
+          <h2 class="card-title" id="presets-title">Try a demo trip</h2>
+          <div id="presets" class="presets"></div>
+          <p class="fineprint">Demo trips use live data for tomorrow. <button type="button" class="link" id="use-snapshot">Offline? Open a recorded snapshot</button>.</p>
+        </section>
+      </aside>
+
+      <section class="main" id="results" tabindex="-1" aria-labelledby="results-title">
+        <h2 id="results-title" class="sr-only">Trip results</h2>
+        <div id="status" class="sr-only" role="status" aria-live="polite"></div>
+
+        <div id="empty" class="card hero">
+          <div class="hero-art" aria-hidden="true">
+            <svg viewBox="0 0 320 120">
+              <defs>
+                <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2b4f" /><stop offset=".65" stop-color="#ff9f68" /><stop offset="1" stop-color="#ffd8a8" /></linearGradient>
+              </defs>
+              <rect width="320" height="120" rx="16" fill="url(#sky)" />
+              <circle cx="232" cy="86" r="18" fill="#ffd166" />
+              <path d="M0 96h320v24H0z" fill="#25324f" />
+              <path d="M150 120l10-24h4l10 24" fill="#3c4a6b" />
+              <path d="M162 100v5M162 110v6" stroke="#ffd166" stroke-width="2" />
+            </svg>
+          </div>
+          <h3>Know the road before you're on it</h3>
+          <p>Enter a trip and GlarePilot lines up the <strong>forecast at the moment you reach each place</strong> — rain, snow, crosswind gusts, temperature — and works out when the <strong>low sun sits in your windshield</strong>.</p>
+          <ul class="hero-points">
+            <li><span class="dot sun"></span>Sun position vs. your heading, minute by minute</li>
+            <li><span class="dot rain"></span>Hourly forecast matched to your arrival time</li>
+            <li><span class="dot clock"></span>Better departure times, with the tradeoffs</li>
+          </ul>
+        </div>
+
+        <div id="loading" class="card loading" hidden>
+          <ol class="steps">
+            <li data-step="route"><span class="step-dot"></span>Routing the drive</li>
+            <li data-step="forecast"><span class="step-dot"></span>Fetching forecasts along the route</li>
+            <li data-step="compute"><span class="step-dot"></span>Computing sun position &amp; glare</li>
+          </ol>
+          <div class="skeleton"></div>
+        </div>
+
+        <div id="error" class="card error-card" hidden>
+          <h3>We couldn't plan this drive</h3>
+          <p id="error-msg"></p>
+          <div class="row">
+            <button type="button" class="primary small" id="retry">Try again</button>
+            <button type="button" class="ghost small" id="error-snapshot">Open a recorded snapshot</button>
           </div>
         </div>
-      </header>
 
-      <main class="layout">
-        <section class="controls">
-          <form id="trip-form">
-            <label>Origin
-              <select id="origin"></select>
-            </label>
-            <label>Destination
-              <select id="destination"></select>
-            </label>
-            <label>Departure (local)
-              <input type="datetime-local" id="departure" />
-            </label>
-            <button type="submit" id="go">Plan drive</button>
-          </form>
-          <p class="data-note" id="data-note"></p>
-          <div id="summary" class="summary"></div>
-        </section>
+        <div id="result" hidden>
+          <div id="snapshot-banner" class="banner" hidden></div>
+          <div id="kpis" class="kpis"></div>
 
-        <section class="map-wrap">
-          <div id="map"></div>
-        </section>
+          <div class="card map-card">
+            <div class="map-toolbar">
+              <div class="seg" role="group" aria-label="Map layer">
+                <button type="button" class="seg-btn" data-layer="glare" aria-pressed="true">Sun glare</button>
+                <button type="button" class="seg-btn" data-layer="weather" aria-pressed="false">Weather</button>
+                <button type="button" class="seg-btn" data-layer="light" aria-pressed="false">Daylight</button>
+              </div>
+              <div id="legend" class="legend" aria-label="Map legend"></div>
+            </div>
+            <div id="map" role="region" aria-label="Route map"></div>
+          </div>
 
-        <section class="timeline">
-          <h2>Along the way</h2>
-          <div id="waypoints" class="waypoints"></div>
-        </section>
+          <div class="card timeline-card">
+            <div class="card-head">
+              <h3 class="card-title">Your drive, hour by hour</h3>
+              <span class="fineprint" id="timeline-note"></span>
+            </div>
+            <div id="timeline" class="timeline"></div>
+            <label class="scrub-label" for="scrub">Move along the trip</label>
+            <input id="scrub" type="range" min="0" max="100" value="0" step="1" />
+          </div>
 
-        <section class="briefing">
-          <h2>Driving briefing</h2>
-          <div id="briefing" class="briefing-body"></div>
-        </section>
-      </main>
+          <div class="detail-grid">
+            <div class="card moment-card" aria-live="polite">
+              <div id="moment"></div>
+            </div>
+            <div class="card compass-card">
+              <h3 class="card-title">Sun vs. your heading</h3>
+              <div id="compass"></div>
+            </div>
+          </div>
 
-      <footer class="footer">
-        <span>Forecast: Open-Meteo · Routing: OSRM demo · Sun: SunCalc · Observations vs. forecasts labeled.</span>
-      </footer>
-    </div>
-    <script type="module" src="/src/main.js"></script>
+          <div class="card optimizer-card">
+            <div class="card-head">
+              <h3 class="card-title">When should I leave?</h3>
+              <span class="fineprint">Same route, departures ±3 h. Lower bars = less glare, wet, wind and night exposure.</span>
+            </div>
+            <div id="optimizer"></div>
+          </div>
+
+          <details class="card table-card">
+            <summary>Forecast checkpoints along the route</summary>
+            <div class="table-wrap"><table id="points-table"></table></div>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0) · Routing: <a href="https://valhalla.github.io/valhalla/" rel="noopener">Valhalla</a> on the FOSSGIS server, OSRM fallback · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors, tiles © <a href="https://carto.com/attributions" rel="noopener">CARTO</a> · Places: <a href="https://www.geonames.org/" rel="noopener">GeoNames</a> (CC BY 4.0) · Sun: <a href="https://github.com/mourner/suncalc" rel="noopener">SunCalc</a>.
+      </p>
+      <p>Drive times are routing-engine estimates without live traffic. Forecasts are model predictions, not observations. GlarePilot is a planning aid, not a safety system.</p>
+    </footer>
+    <script type="module" src="./src/main.js"></script>
   </body>
 </html>

@@ -11,10 +11,12 @@
 - Tests at freeze: 35 unit + 13 E2E pass; independent subagent reviews twice, findings fixed; live smoke checks (desktop, mobile, reduced motion, zero weather/route API calls in demo mode).
 - Narrated (synthetic Piper voice, LJ Speech public domain) + captioned 2:50 video, SRT, transcript: GitHub release `v1.0-hackachusetts`.
 
-## Not in the recording build
-- 3D terrain view: code on branch `terrain-preview`, build + tests pass, WebGL rendering NOT visually verified (headless WebGL crashes on this machine) → not deployed.
-- Buildings: not started. Terrain solar occlusion: not implemented (est. 2–4 h for a bounded, tested DEM-horizon approximation).
-- Live/predictive traffic: no credentials; delay assumptions instead. GPS: not implemented.
+## Branch work (pushed, NOT deployed, not in the recording build) — 7:33 PM
+- `terrain-preview` @ 6d7c728: MapLibre GL 4.7.1 3D terrain (AWS Terrain Tiles, hillshade = visual only) + OpenFreeMap 3D buildings, WebGL fallback to the Canvas chase. Visually verified with real Chrome + SwiftShader under Xvfb (screenshots docs/qa/terrain-*.png on that branch); not checked on a real GPU. 35 unit + 14 E2E pass on the branch.
+- `occlusion-prototype` @ 8faf2e4: pure terrain-horizon library (`src/lib/horizon.js`), tests (45 unit pass), real-tile probe, `docs/OCCLUSION.md`. NOT wired into glare; missing data → 'unknown', never 'blocked'. Integration estimate ≈ 3–4 focused days.
+- `gps-follow` @ 8047b48: optional "Use my location" (explicit click, HTTPS, denial/off-route handling, nothing stored or sent), snaps to the planned route; 37 unit + 17 E2E pass on the branch. Tested with emulated geolocation only.
+- Live/predictive traffic: still no credentials (TomTom/HERE/Google-class APIs need keys); delay assumptions instead. Cloudflare: no credentials.
+- Merging any branch into the live site is a visible production change: only after the human says recording is finished, and note the contest rule that the submission may not be changed after the submission period.
 
 ## Human-only actions
 1. Upload the video publicly (YouTube/Vimeo) — file and text in release `v1.0-hackachusetts` and `docs/media/youtube.md`.

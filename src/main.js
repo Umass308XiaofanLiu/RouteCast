@@ -125,6 +125,9 @@ function show(view) {
   $('advice-card').hidden = view !== 'result';
   if (view !== 'result') chase?.show(false);
   else if (state.view === '3d') chase?.show(true);
+  // terrain view
+  if (view !== 'result') terrain?.show(false);
+  else if (state.view === 'terrain') terrain?.show(true);
   document.body.classList.toggle('has-result', view === 'result');
 }
 function setBusy(busy) {
@@ -228,6 +231,9 @@ let mapView = null;
 let timeline = null;
 let condLayer = null;
 let chase = null;
+// terrain view: lazily created MapLibre view (src/ui/terrain3d.js)
+let terrain = null;
+let terrainLoading = null;
 
 function renderAll({ fit = false } = {}) {
   const { model, ev } = state;
@@ -252,6 +258,7 @@ function renderAll({ fit = false } = {}) {
     $('cond-legend').innerHTML = condLegendHtml(condLayer.presentCategories());
   });
   chase.setTrip(model, ev);
+  terrain?.setTrip(model, ev); // terrain view
   renderAdvice();
   renderOptimizer();
   renderTable();
@@ -398,10 +405,11 @@ function previewAt(i) {
   $('compass').innerHTML = `${compassSvg(ev.rows[i], model.samples[i])}<div class="compass-text">${compassText(ev.rows[i], model.samples[i])}</div>`;
 }
 
-function select(i, { range, fromChase = false } = {}) {
+function select(i, { range, fromChase = false, fromTerrain = false } = {}) {
   const { model, ev } = state;
   state.sel = Math.max(0, Math.min(ev.rows.length - 1, i));
   if (!fromChase) chase?.setCurrent(state.sel);
+  if (!fromTerrain) terrain?.setCurrent(state.sel); // terrain view
   mapView.setPreview(null);
   const row = ev.rows[state.sel];
   const smp = model.samples[state.sel];
@@ -625,6 +633,19 @@ function setView(view) {
   state.view = view;
   document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
   const is3d = view === '3d';
+  // terrain view: hide 2D map, chase and layer controls; lazily create the MapLibre view
+  const isTerrain = view === 'terrain';
+  $('terrain').hidden = !isTerrain;
+  if (isTerrain) {
+    $('map').hidden = true;
+    $('chase').hidden = true;
+    document.querySelector('.map-toolbar [aria-label="Map layer"]').hidden = true;
+    $('legend').hidden = true;
+    chase?.show(false);
+    openTerrain();
+    return;
+  }
+  terrain?.show(false);
   $('map').hidden = is3d;
   $('chase').hidden = !is3d;
   document.querySelector('.map-toolbar [aria-label="Map layer"]').hidden = is3d;
@@ -644,6 +665,38 @@ function setView(view) {
   }
 }
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+
+// ---------- terrain view (begin) ----------
+const TERRAIN_FALLBACK = '3D terrain needs WebGL and online tiles — showing the lightweight 3D chase preview instead';
+function openTerrain() {
+  if (terrain) {
+    if (state.model) {
+      terrain.setTrip(state.model, state.ev);
+      terrain.setCurrent(state.sel);
+    }
+    terrain.show(true);
+    return;
+  }
+  if (terrainLoading) return;
+  $('terrain-msg').hidden = true;
+  terrainLoading = import('./ui/terrain3d.js')
+    .then((m) => m.createTerrainView($('terrain'), { onAdvance: (i) => select(i, { fromTerrain: true }), getFmt: () => fmt, reducedMotion }))
+    .then((t) => {
+      terrain = t;
+      if (state.view === 'terrain') openTerrain();
+    })
+    .catch((err) => {
+      console.warn('terrain view unavailable:', err?.message || err);
+      $('terrain').innerHTML = '';
+      $('terrain-msg').textContent = TERRAIN_FALLBACK;
+      $('terrain-msg').hidden = false;
+      if (state.view === 'terrain') setView('3d');
+    })
+    .finally(() => {
+      terrainLoading = null;
+    });
+}
+// ---------- terrain view (end) ----------
 
 function setMotion(on) {
   document.body.classList.toggle('motion-off', !on);
@@ -727,4 +780,5 @@ renderPresets();
   else if (q.get('snapshot')) openSnapshot(q.get('snapshot'));
   else if (q.get('preset')) runPreset(q.get('preset'));
   if (q.get('view') === '3d') setView('3d');
+  else if (q.get('view') === 'terrain') setView('terrain'); // terrain view
 }

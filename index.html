@@ -194,6 +194,8 @@
               <div class="seg" role="group" aria-label="View">
                 <button type="button" class="seg-btn" data-view="2d" aria-pressed="true">2D overview</button>
                 <button type="button" class="seg-btn" data-view="3d" aria-pressed="false">3D chase preview</button>
+                <!-- terrain view (MapLibre, lazy) -->
+                <button type="button" class="seg-btn" data-view="terrain" aria-pressed="false">3D terrain</button>
               </div>
               <div class="seg" role="group" aria-label="Map layer">
                 <button type="button" class="seg-btn" data-layer="glare" aria-pressed="true">Sun glare</button>
@@ -220,7 +222,10 @@
                   <span class="chase-zoom"><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer">−</button><span data-hud="level">Near</span><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther">+</button></span>
                 </div>
               </div>
+              <!-- terrain view (MapLibre, lazy): filled by src/ui/terrain3d.js -->
+              <div id="terrain" class="terrain" role="region" aria-label="3D terrain view of the planned route (simulated playback, not GPS)" hidden></div>
             </div>
+            <p id="terrain-msg" class="terrain-msg" role="status" hidden></p>
             <div class="cond-bar">
               <div id="cond-legend" class="cond-legend" aria-label="Condition icon legend"></div>
               <button type="button" id="motion" class="motion-btn" aria-pressed="true">Animation: on</button>

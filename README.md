@@ -87,6 +87,14 @@ Instead, the "Traffic delay assumption" control lets you add +15 min … +2 h of
 - Mouse wheel, horizontal swipe or arrow keys preview ahead or behind without changing the playback position; **Return to playback position** goes back. Camera distances: Close / Near / Far / Wide. **Play/Pause** advances the playback.
 - Both views share one selected time with the timeline. GPS / live location is not implemented.
 
+## 3D terrain view
+
+A third map view, **3D terrain**, drapes the planned route (colored by the projected condition at each point's arrival time) over real elevation in [MapLibre GL JS](https://maplibre.org/) 4.7.1. The camera sits behind and above the *simulated* playback position, looking along the route heading, and follows the same selected point as the timeline and the 3D chase preview; Play, "Return to playback position" and Close/Near/Far/Wide work like the chase preview, and you can drag, rotate and zoom to look around. It is simulated playback of the planned route, not GPS.
+
+- Elevation: Terrain: [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Mapzen; SRTM, USGS 3DEP and others), terrarium encoding, 1.4× vertical exaggeration. Basemap: © OpenStreetMap contributors.
+- The hillshade light direction follows the represented point's sun azimuth. This is visual shading only; it is **not** used for the glare model.
+- Needs WebGL and online map + elevation tiles (also in the manual demo scenarios, whose weather stays hand-set). MapLibre is loaded on demand only when this view is opened. If WebGL is unavailable or the map cannot load, the app shows a short notice and switches to the lightweight 3D chase preview. `?view=terrain` opens this view directly.
+
 ## Data you see and where it comes from
 
 | What you see | Kind | Source |

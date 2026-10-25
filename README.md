@@ -1,6 +1,12 @@
 # GlarePilot
 
-Forecast weather and sun glare for the places **and the times** you will actually be on a long US drive.
+Route-time weather and sunlight planning for long US drives: the forecast, the sun and the low-sun glare for the places **and the times** you will actually be on the road.
+
+### ▶ [Watch the demo on YouTube](https://youtu.be/o3GfF2jkngo)
+
+[![GlarePilot: route map with projected conditions and the 3D chase preview at the low-sun stretch — click to watch the demo on YouTube](docs/media/glarepilot-project-cover-1200x800.jpg)](https://youtu.be/o3GfF2jkngo)
+
+<sub>Built from real screenshots of the live app: recorded real-data snapshot (Amherst → Chicago, route and forecast captured Oct 24, 2026) — 2D route map with projected conditions and the 3D chase preview at the low-sun stretch near Lorain, OH (simulated playback of the planned route, not GPS).</sub>
 
 **Live demo:** https://umass308xiaofanliu.github.io/glarepilot/ — free, no login, no API key.
 
@@ -11,9 +17,7 @@ Forecast weather and sun glare for the places **and the times** you will actuall
 | [`?demo=congestion-shift`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift) | **Manual demo scenario** (synthetic): an assumed 75 min mid-route delay pushes the New York arrival into hand-set rain and darkness |
 | [`?demo=sunset-glare&view=3d`](https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d) | **Manual demo scenario** (synthetic, clear skies) opened in the **3D chase preview** |
 
-**Demo video:** public YouTube link — TODO (human uploads). Narrated + captioned 2:50 recording of the live site: [GitHub release v1.0-hackachusetts](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts) (MP4 + SRT; synthetic TTS narration). Transcript: [docs/media/TRANSCRIPT.md](docs/media/TRANSCRIPT.md).
-
-[![GlarePilot demo video poster](docs/media/glarepilot-demo-poster.png)](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts)
+**Demo video:** https://youtu.be/o3GfF2jkngo — public operation demo video, posted on YouTube after the SundAI submission locked. The SundAI entry itself links the GitHub-hosted MP4 in [release v1.0-hackachusetts](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts), a narrated + captioned recording (synthetic TTS narration) with an SRT file; transcript of that release video: [docs/media/TRANSCRIPT.md](docs/media/TRANSCRIPT.md).
 
 Hackachusetts 2026 entry. Built with Kiro CLI — see [docs/SUBMISSION.md](docs/SUBMISSION.md).
 

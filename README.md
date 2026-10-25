@@ -7,9 +7,9 @@
 </p>
 
 <p align="center">
-  <strong><a href="https://umass308xiaofanliu.github.io/glarepilot/">Open the live app</a></strong>
+  <strong><a href="https://umass308xiaofanliu.github.io/RouteCast/">Open the live app</a></strong>
   · <a href="https://youtu.be/o3GfF2jkngo">Watch the original 2:50 demo on YouTube</a>
-  · <a href="https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts">release MP4</a>
+  · <a href="https://github.com/Umass308XiaofanLiu/RouteCast/releases/tag/v1.0-hackachusetts">release MP4</a>
   · <a href="docs/media/glarepilot-demo.en.srt">English captions</a>
 </p>
 
@@ -22,10 +22,12 @@ after dark, and whether leaving earlier or later would avoid the worst of it.
 It is a static web app with no backend, no account and no API key. Guidance comes from a
 deterministic rules engine that reports the values behind every recommendation; no generative AI
 runs in the app. The project was built with Kiro CLI for Hackachusetts 2026 under the name
-GlarePilot; the repository address and the live URL keep that name.
+GlarePilot and renamed RouteCast on 2026-10-25. GitHub redirects the old repository address, but
+the old demo address `umass308xiaofanliu.github.io/glarepilot/` no longer resolves; the live app is
+now at the link above.
 
 The live site runs **v1.1.1**. The build submitted to Hackachusetts is preserved as
-[`v1.0-hackachusetts`](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts).
+[`v1.0-hackachusetts`](https://github.com/Umass308XiaofanLiu/RouteCast/releases/tag/v1.0-hackachusetts).
 The demo video was recorded from that original GlarePilot build and uses a synthetic
 text-to-speech voice. Features added in v1.1 are therefore not shown in it: the 3D terrain view,
 the terrain check, location follow and the traffic overlays. The screenshots below also predate
@@ -43,12 +45,12 @@ In every mode, the 3D terrain view also loads elevation and building tiles, and 
 
 | Link | Opens |
 |---|---|
-| [`?preset=chicago-sunset`](https://umass308xiaofanliu.github.io/glarepilot/?preset=chicago-sunset) | Live plan: Amherst, MA → Chicago, IL, tomorrow at 8:00 AM Eastern |
-| [`?snapshot=chicago-sunset`](https://umass308xiaofanliu.github.io/glarepilot/?snapshot=chicago-sunset) | The same trip from a recorded snapshot |
-| [`?demo=sunset-glare&view=3d`](https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d) | Westbound low sun near Lake Erie, in the 3D chase preview |
-| [`?demo=congestion-shift`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift) | An assumed 75-minute delay pushes the New York arrival into rain and darkness |
-| [`?demo=storm-crosswind&view=terrain`](https://umass308xiaofanliu.github.io/glarepilot/?demo=storm-crosswind&view=terrain) | Heavy rain and crosswind gusts in the 3D terrain view (requires WebGL) |
-| [`?demo=congestion-shift&view=terrain`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift&view=terrain) | Terrain and 3D buildings: move the timeline to New York and choose the Close camera |
+| [`?preset=chicago-sunset`](https://umass308xiaofanliu.github.io/RouteCast/?preset=chicago-sunset) | Live plan: Amherst, MA → Chicago, IL, tomorrow at 8:00 AM Eastern |
+| [`?snapshot=chicago-sunset`](https://umass308xiaofanliu.github.io/RouteCast/?snapshot=chicago-sunset) | The same trip from a recorded snapshot |
+| [`?demo=sunset-glare&view=3d`](https://umass308xiaofanliu.github.io/RouteCast/?demo=sunset-glare&view=3d) | Westbound low sun near Lake Erie, in the 3D chase preview |
+| [`?demo=congestion-shift`](https://umass308xiaofanliu.github.io/RouteCast/?demo=congestion-shift) | An assumed 75-minute delay pushes the New York arrival into rain and darkness |
+| [`?demo=storm-crosswind&view=terrain`](https://umass308xiaofanliu.github.io/RouteCast/?demo=storm-crosswind&view=terrain) | Heavy rain and crosswind gusts in the 3D terrain view (requires WebGL) |
+| [`?demo=congestion-shift&view=terrain`](https://umass308xiaofanliu.github.io/RouteCast/?demo=congestion-shift&view=terrain) | Terrain and 3D buildings: move the timeline to New York and choose the Close camera |
 
 Other snapshots: `boston-sunrise`, `nyc-evening`. Other demo scenario: `snow-fog-night`.
 

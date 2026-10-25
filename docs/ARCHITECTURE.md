@@ -5,8 +5,9 @@ goes from the browser directly to a public service. State described here is the 
 v1.1 release served by GitHub Pages (checked against the code at 816df5c/d8a745e, 2026-10-24/25;
 v1.1.1 only renamed the app). The contest build is preserved as `v1.0-hackachusetts`.
 
-RouteCast was named GlarePilot until 2026-10-25. The repository, the live URL and the
-`glarepilot.*` storage keys keep the original name.
+RouteCast was named GlarePilot until 2026-10-25, when the repository was renamed to
+`Umass308XiaofanLiu/RouteCast` and the live demo moved to https://umass308xiaofanliu.github.io/RouteCast/
+(the old `/glarepilot/` Pages path returns 404). The `glarepilot.*` storage keys keep the original name.
 
 ## Module map
 

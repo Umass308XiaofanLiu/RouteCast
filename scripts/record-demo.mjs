@@ -25,7 +25,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const BASE = process.argv[2] || 'https://umass308xiaofanliu.github.io/glarepilot/';
+const BASE = process.argv[2] || 'https://umass308xiaofanliu.github.io/RouteCast/';
 const CHROME = process.env.CHROME_PATH || '/opt/google/chrome/chrome';
 const OUT = resolve('docs/media');
 const VW = 1440; // video width

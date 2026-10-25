@@ -1,5 +1,7 @@
 # GlarePilot — Hackachusetts 2026 submission pack
 
+> **Renamed 2026-10-25:** the project is now RouteCast; the repository is https://github.com/Umass308XiaofanLiu/RouteCast and the live demo is https://umass308xiaofanliu.github.io/RouteCast/. The `/glarepilot/` demo links below are the historical ones and no longer resolve.
+
 > **Contest-era document (v1.0-hackachusetts, 2026-10-24).** It describes the build submitted to Hackachusetts; post-hackathon features (3D terrain view, terrain check, GPS follow, overlays) are documented in README.md → *Post-hackathon development* and docs/ARCHITECTURE.md.
 
 Copy-paste material for the SundAI form. Items marked **TODO (human)** must be completed by the team; nothing here is submitted automatically. A GitHub push alone is not a submission — the SundAI form must be submitted before **8:00 PM ET on 2026-10-24**.

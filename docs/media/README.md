@@ -1,5 +1,7 @@
 # GlarePilot demo video
 
+> **Renamed 2026-10-25:** the project is now RouteCast; the repository is https://github.com/Umass308XiaofanLiu/RouteCast and the live demo is https://umass308xiaofanliu.github.io/RouteCast/. The `/glarepilot/` demo links below are the historical ones and no longer resolve.
+
 | File | What it is |
 | --- | --- |
 | `the GitHub release asset (https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts)` (not in the repo) | Narrated screen recording, 2:50 (169.90 s), 1440×900 H.264 30 fps + AAC stereo 48 kHz (128 kbps target), 15,875,943 bytes. The main agent publishes it as a GitHub release asset; MP4s are not committed. |

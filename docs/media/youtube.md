@@ -1,5 +1,7 @@
 # YouTube upload kit — GlarePilot demo
 
+> **Renamed 2026-10-25:** the project is now RouteCast; the repository is https://github.com/Umass308XiaofanLiu/RouteCast and the live demo is https://umass308xiaofanliu.github.io/RouteCast/. The `/glarepilot/` demo links below are the historical ones and no longer resolve.
+
 File to upload: `glarepilot-demo.mp4` from the GitHub release https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts.
 Subtitles: `docs/media/glarepilot-demo.en.srt` (English). Thumbnail (optional): `docs/media/glarepilot-demo-poster.png`.
 

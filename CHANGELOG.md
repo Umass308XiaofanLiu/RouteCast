@@ -3,6 +3,15 @@
 Dates are US Eastern. Hashes point to representative commits. The contest submission is preserved as
 tag/release `v1.0-hackachusetts`; GitHub Pages serves v1.1.x since 2026-10-25.
 
+## Repository rename (2026-10-25, after v1.1.1; no app change)
+
+- GitHub repository renamed `Umass308XiaofanLiu/glarepilot` → `Umass308XiaofanLiu/RouteCast`. Old
+  github.com repository, release and clone URLs redirect.
+- The live demo moved to https://umass308xiaofanliu.github.io/RouteCast/ (case-sensitive). GitHub
+  Pages does not redirect: `https://umass308xiaofanliu.github.io/glarepilot/` now returns 404.
+- README and current docs point to the new URLs. Historical files (submission pack, recording
+  logs, status snapshots) keep the URLs that were used at the time.
+
 ## v1.1.1 — display name RouteCast (2026-10-25)
 
 - The app is now called **RouteCast — Weather-Aware Trip Planning** (formerly GlarePilot): page

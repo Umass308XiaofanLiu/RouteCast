@@ -95,8 +95,28 @@ export function createMap(el, { onPick }) {
     car.addTo(map);
   }
 
+  // GPS accuracy circle (latest fix only). SVG renderer so it is a real DOM element; the fix is
+  // held only by this in-memory Leaflet layer and dropped on clearAccuracy() — never stored.
+  let accCircle = null;
+  let accRenderer = null;
+
   return {
     map,
+    /** Show/move the accuracy circle: radius in meters from coords.accuracy (min 5 m). */
+    setAccuracy(lat, lon, radiusM) {
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || !(radiusM > 0)) return this.clearAccuracy();
+      const r = Math.max(5, radiusM);
+      if (!accCircle) {
+        accRenderer ??= L.svg({ padding: 0.5 });
+        accCircle = L.circle([lat, lon], { radius: r, renderer: accRenderer, className: 'gps-accuracy', color: '#0c5a3c', weight: 2, fillColor: '#1aa36f', fillOpacity: 0.15, interactive: false }).addTo(map);
+      } else accCircle.setLatLng([lat, lon]).setRadius(r);
+      el.dataset.gpsAccuracy = String(Math.round(r));
+    },
+    clearAccuracy() {
+      if (accCircle) accCircle.remove();
+      accCircle = null;
+      delete el.dataset.gpsAccuracy;
+    },
     render(model, ev, layer, glareWindows, { fit = false } = {}) {
       map.invalidateSize();
       drawRoute(model, ev, layer);

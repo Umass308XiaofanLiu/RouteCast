@@ -8,7 +8,7 @@ import { buildAdvice } from './lib/advice.js';
 import { forecastHorizonEnd } from './lib/providers.js';
 import { parseLocalInput, toLocalInput, zonedParts, zonedWallTimeToUtc, formatClock, formatDuration, tzAbbrev } from './lib/time.js';
 import { describeCode } from './lib/weather.js';
-import { compass, nearestSample } from './lib/geo.js';
+import { compass, snapFix } from './lib/geo.js';
 import { makeFormatter } from './lib/units.js';
 import { PRESETS, PLACES } from './lib/presets.js';
 import { createCombobox } from './ui/combobox.js';
@@ -879,6 +879,7 @@ $('view-preview').querySelector('[data-act="return"]').addEventListener('click',
 const TERRAIN_FALLBACK = '3D terrain needs WebGL and online tiles — showing the lightweight 3D chase preview instead';
 function openTerrain({ flyFrom = null } = {}) {
   if (terrain) {
+    gpsSyncTerrain(); // GPS follow label (b3-gps)
     if (state.model) {
       terrain.setTrip(state.model, state.ev);
       terrain.setCurrent(state.sel);
@@ -934,16 +935,18 @@ $('motion').addEventListener('click', () => setMotion(document.body.classList.co
 setMotion(!reducedMotion());
 
 // ---------- optional "follow my location" (GPS) ----------
-// Off by default; starts only on an explicit click. Fixes are snapped to the nearest planned-route
-// sample in memory and then discarded: coordinates are never stored, logged or sent anywhere.
-const GPS_OFF_ROUTE_M = 2000;
-const GPS_MAX_ACCURACY_M = 1500; // coarser fixes (e.g. IP/Wi-Fi only) are not snapped to the route
+// Off by default; starts only on an explicit click. Fixes are snapped to the planned route in
+// memory (lib/geo.js snapFix, with hysteresis) and then discarded: coordinates are never stored,
+// logged or sent anywhere. The only place a fix lives is the 2D accuracy circle of the latest
+// fix (an in-memory map layer), removed on Stop. Heading from consecutive fixes is NOT used for
+// glare: conditions always stay the planned forecast for the trip timeline.
 const GPS_FOLLOW_LABEL = "Following your location (GPS) — conditions are still the PLANNED forecast for this trip's timeline";
+const GPS_WRONG_WAY = 'You seem to be moving against the planned direction';
 const GPS_CHASE_TAG = 'Simulated playback of the planned route · not GPS';
 let gpsWatch = null;
-// In-memory only: the route sample index matched to the latest fix (no coordinates kept).
-const gps = { idx: null, paused: false };
-
+// In-memory only: the route sample index matched to the latest fix plus hysteresis counters
+// (indices, no coordinates), keyed to the trip model they refer to.
+const gps = { idx: null, paused: false, match: null, model: null };
 /** A user-driven move (scrub, map/timeline/icon pick, advice, playback) pauses GPS following. */
 function gpsUserMoved() {
   if (gpsWatch == null || gps.idx == null || gps.paused) return;
@@ -965,17 +968,30 @@ function gpsStatus(msg, warn = false) {
   el.textContent = msg;
   el.classList.toggle('warn', warn);
 }
-function gpsFollowing(on) {
-  const hud = document.querySelector('[data-hud="gps"]');
+function gpsLabel(wrongWay = false) {
+  return wrongWay ? `${GPS_FOLLOW_LABEL} · ${GPS_WRONG_WAY}?` : GPS_FOLLOW_LABEL;
+}
+let gpsLabelNow = '';
+/** Same follow label in every view: 3D chase HUD and (when created) the 3D terrain HUD. */
+function gpsFollowing(on, wrongWay = false) {
+  gpsLabelNow = on ? gpsLabel(wrongWay) : '';
+  const hud = $('chase').querySelector('[data-hud="gps"]');
   hud.hidden = !on;
-  hud.textContent = on ? GPS_FOLLOW_LABEL : '';
-  document.querySelector('.chase-tag').textContent = on ? 'Snapped to your GPS position on the planned route' : GPS_CHASE_TAG;
+  hud.textContent = gpsLabelNow;
+  $('chase').querySelector('.chase-tag').textContent = on ? 'Snapped to your GPS position on the planned route' : GPS_CHASE_TAG;
+  gpsSyncTerrain();
+}
+function gpsSyncTerrain() {
+  terrain?.setGpsLabel?.(gpsLabelNow);
 }
 function gpsStop(msg = '') {
   if (gpsWatch != null) navigator.geolocation.clearWatch(gpsWatch);
   gpsWatch = null;
   gps.idx = null;
   gps.paused = false;
+  gps.match = null;
+  gps.model = null;
+  mapView?.clearAccuracy();
   $('gps-start').hidden = false;
   $('gps-stop').hidden = true;
   $('gps-return').hidden = true;
@@ -983,36 +999,44 @@ function gpsStop(msg = '') {
   gpsStatus(msg, Boolean(msg));
 }
 function gpsOnFix(pos) {
+  if (gpsWatch == null) return; // a late fix after Stop is dropped
   const { model, ev } = state;
+  const { latitude: lat, longitude: lon, accuracy: acc } = pos.coords;
+  mapView?.setAccuracy(lat, lon, acc); // latest fix only, in-memory layer
   if (!model || !ev) {
     gpsFollowing(false);
     gpsStatus('Location received — plan or open a trip to follow it on the route.');
     return;
   }
-  const acc = pos.coords.accuracy;
+  if (gps.model !== model) {
+    gps.model = model;
+    gps.match = null;
+  }
   const at = new Date(pos.timestamp || Date.now()).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  if (acc != null && acc > GPS_MAX_ACCURACY_M) {
+  const r = snapFix(model.samples, { lat, lon, accuracy: acc }, gps.match);
+  gps.match = r.state;
+  if (r.status === 'none') return;
+  if (r.status === 'imprecise') {
     gps.idx = null;
     gpsFollowing(false);
     gpsStatus(`Location too imprecise to place you on the route${gpsAcc(acc)} (fix ${at}) — position unchanged`, true);
     return;
   }
-  const hit = nearestSample(model.samples, pos.coords.latitude, pos.coords.longitude);
-  if (!hit) return;
-  if (hit.distM > GPS_OFF_ROUTE_M) {
+  if (r.status === 'off') {
     gps.idx = null;
     gpsFollowing(false);
-    gpsStatus(`You are off this planned route (${(hit.distM / 1609.344).toFixed(hit.distM < 160934 ? 1 : 0)} mi away${gpsAcc(acc)}) — playback position unchanged`, true);
+    gpsStatus(`You are off this planned route (${(r.distM / 1609.344).toFixed(r.distM < 160934 ? 1 : 0)} mi away${gpsAcc(acc)}) — playback position unchanged`, true);
     return;
   }
-  gps.idx = hit.index;
+  gps.idx = r.index;
   if (gps.paused) {
     gpsStatus(`GPS following paused while you explore the plan — latest fix ${at}${gpsAcc(acc)}. “Return to my location” resumes it.`);
     return;
   }
-  gpsFollowing(true);
-  gpsStatus(`${GPS_FOLLOW_LABEL} · fix ${at}${gpsAcc(acc)} · ${fmt.dist(hit.distM)} from the route line`);
-  if (hit.index !== state.sel) select(hit.index);
+  gpsFollowing(true, r.wrongWay);
+  const held = r.held ? ' · holding position (fix behind the route progress)' : '';
+  gpsStatus(`${gpsLabel(r.wrongWay)} · fix ${at}${gpsAcc(acc)} · ${fmt.dist(r.distM)} from the route line${held}`);
+  if (r.index !== state.sel) select(r.index);
 }
 function gpsOnError(err) {
   const msg =

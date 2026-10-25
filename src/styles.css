@@ -459,3 +459,8 @@ body.motion-off .view-enter { animation: none !important; }
 .terrain .chase-controls { right: 44px; } /* wraps before the (i) attribution button */
 @media (max-width: 640px) { .terrain .chase-controls [data-act="return"] { order: 1; } } /* two rows: Play ◀ ▶ −Near+ / Return */
 /* ---------- views (end) ---------- */
+
+/* --- b3-gps: GPS accuracy circle + terrain follow label --- */
+.gps-accuracy { pointer-events: none; }
+.terrain-gps { z-index: 3; top: auto; bottom: 96px; } /* clear of the terrain note row */
+/* --- end b3-gps --- */

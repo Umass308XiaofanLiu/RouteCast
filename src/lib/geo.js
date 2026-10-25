@@ -158,3 +158,78 @@ export function nearestSample(samples, lat, lon) {
   }
   return { index: best, distM: haversine(lat, lon, samples[best].lat, samples[best].lon) };
 }
+
+/** Nearest sample restricted to indices [lo, hi] (inclusive). Pure; same metric as nearestSample. */
+function nearestInRange(samples, lat, lon, lo, hi) {
+  const k = Math.cos((lat * Math.PI) / 180);
+  let best = -1;
+  let bestD = Infinity;
+  for (let i = Math.max(0, lo); i <= Math.min(samples.length - 1, hi); i += 1) {
+    const d = (samples[i].lat - lat) ** 2 + ((samples[i].lon - lon) * k) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best < 0 ? null : { index: best, distM: haversine(lat, lon, samples[best].lat, samples[best].lon) };
+}
+
+export const GPS_MATCH_DEFAULTS = Object.freeze({
+  offRouteM: 2000, // farther than this from every sample → off-route, position unchanged
+  maxAccuracyM: 1500, // coarser fixes (IP/Wi-Fi) are ignored entirely
+  maxBack: 2, // jitter tolerance: unconfirmed backward matches never move the position back
+  confirm: 3, // consecutive fixes behind the current position needed to accept a real move back
+  window: 30, // forward search window (samples) for the monotonic-progress preference
+});
+
+/**
+ * Snap one GPS fix to the planned route with hysteresis. Pure and index-only: the returned
+ * `state` holds sample indices and counters, never coordinates, so nothing about the location
+ * is kept between fixes. `fix` = { lat, lon, accuracy? } (accuracy in meters).
+ *
+ * - Forward progress (or a match at the current sample) is accepted at once.
+ * - When the previous position is known, a candidate inside [idx - maxBack, idx + window] is
+ *   preferred over the global nearest sample if it is about as close (monotonic preference).
+ * - A match behind the current position is held (index unchanged) until `confirm` consecutive
+ *   fixes agree; jitter therefore never moves the position backwards.
+ * - `wrongWay` is a gentle label hint: the raw match kept decreasing over `confirm` fixes.
+ * - Imprecise fixes leave the state untouched; off-route fixes drop the hysteresis anchor so the
+ *   first fix back on the route snaps freely.
+ * Returns { status: 'ok'|'off'|'imprecise'|'none', index, distM, held, wrongWay, state }.
+ */
+export function snapFix(samples, fix, prev = null, opts = {}) {
+  const o = { ...GPS_MATCH_DEFAULTS, ...opts };
+  const p = prev && Number.isInteger(prev.idx) && prev.idx < (samples?.length || 0) ? prev : null;
+  const acc = Number.isFinite(fix?.accuracy) ? fix.accuracy : null;
+  const keep = (status, extra = {}) => ({ status, index: p ? p.idx : null, distM: null, held: false, wrongWay: false, state: prev ?? null, ...extra });
+  if (!samples?.length || !fix || !Number.isFinite(fix.lat) || !Number.isFinite(fix.lon)) return keep('none');
+  if (acc != null && acc > o.maxAccuracyM) return keep('imprecise');
+  const global = nearestSample(samples, fix.lat, fix.lon);
+  if (global.distM > o.offRouteM) {
+    return keep('off', { distM: global.distM, state: p ? { ...p, off: true, back: 0, rev: 0 } : null });
+  }
+  if (!p || p.off) {
+    const state = { idx: global.index, raw: global.index, back: 0, rev: 0, off: false };
+    return { status: 'ok', index: global.index, distM: global.distM, held: false, wrongWay: false, state };
+  }
+  let hit = global;
+  const local = nearestInRange(samples, fix.lat, fix.lon, p.idx - o.maxBack, p.idx + o.window);
+  const slack = Math.max(50, Math.min(acc ?? 50, 500));
+  if (local && local.index !== global.index && local.distM <= global.distM + slack) hit = local;
+  const raw = hit.index;
+  const rev = raw < p.raw ? p.rev + 1 : raw > p.raw ? 0 : p.rev;
+  let idx = raw;
+  let back = 0;
+  let held = false;
+  if (raw < p.idx) {
+    back = p.back + 1;
+    // accept once confirmed, and keep following a reversal that stays consistent
+    if (back < o.confirm && rev < o.confirm) {
+      idx = p.idx; // hold: unconfirmed backward match (jitter)
+      held = true;
+    } else back = 0; // confirmed: accept the move back
+  }
+  const wrongWay = rev >= o.confirm - 1 && p.raw - raw > 0;
+  const state = { idx, raw, back, rev, off: false };
+  return { status: 'ok', index: idx, distM: hit.distM, held, wrongWay, state };
+}

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "leaflet": "1.9.4",
+    "maplibre-gl": "4.7.1",
     "suncalc": "1.9.0"
   },
   "devDependencies": {

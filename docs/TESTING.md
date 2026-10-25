@@ -18,10 +18,9 @@ Requirements: Google Chrome at `/opt/google/chrome/chrome` (or `CHROME_PATH`), a
 for the visual suite. Headless Chrome WebGL is unreliable on this machine, which is why the 3D
 terrain view is only checked by the visual suite.
 
-Screenshots: `npm run test:e2e` always rewrites `docs/qa/e2e-*.png` (there is no `UPDATE_SHOTS`
-switch in `tests/e2e/helpers.mjs`). After running it in a working copy you do not intend to change,
-restore them with `git checkout -- docs/qa`. The visual suite writes only to `OUT` (default
-`/tmp/glarepilot-visual`) and never touches `docs/`.
+Screenshots: `npm run test:e2e` writes its screenshots to `os.tmpdir()/glarepilot-e2e-shots` and leaves
+`docs/qa` untouched (verified: `git status` clean after a full run). Set `UPDATE_SHOTS=1` to write them
+to `docs/qa/` instead (then review and commit intentionally).
 
 Test files: unit — `gps`, `gpsmatch`, `horizon`, `math`, `occlusion-real`, `overlays`, `pipeline`,
 `scenarios`, `terraincheck`, `terrainfx`, `terrainglare`, `traffic`; E2E — `app`, `gps`, `modes`,

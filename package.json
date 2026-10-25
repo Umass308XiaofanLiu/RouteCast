@@ -1,6 +1,6 @@
 {
   "name": "glarepilot",
-  "version": "1.0.0",
+  "version": "1.1.0-dev",
   "private": true,
   "description": "Long-distance driving companion with time-aware forecast weather and sun-glare prediction.",
   "type": "module",
@@ -13,7 +13,7 @@
     "test:visual": "bash scripts/test-visual.sh",
     "record:snapshots": "node scripts/record-snapshots.mjs",
     "screenshots": "node scripts/screenshot.mjs",
-    "deploy:cloudflare": "npm run build && npx --yes wrangler@4.45.0 pages deploy dist --project-name glarepilot --branch main"
+    "deploy:cloudflare": "echo 'Cloudflare deploy is deferred; set CF_BRANCH explicitly to deploy a preview branch' && test -n \"$CF_BRANCH\" && npm run build && npx --yes wrangler@4.45.0 pages deploy dist --project-name glarepilot --branch \"$CF_BRANCH\""
   },
   "dependencies": {
     "leaflet": "1.9.4",

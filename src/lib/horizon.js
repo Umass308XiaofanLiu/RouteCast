@@ -1,5 +1,7 @@
-// PROTOTYPE — terrain sun-occlusion (geographic line-of-sight) helpers.
-// Pure logic, no DOM, no network. NOT wired into the UI or the glare score.
+// Terrain sun-occlusion (geographic line-of-sight) helpers — approximate, bare-earth DEM.
+// Pure logic, no DOM, no network. Used by src/lib/terraincheck.js for the on-demand / opt-in
+// terrain check and the SEPARATE terrain-adjusted glare layer (src/lib/terrainglare.js); it never
+// changes the geometric or cloud-adjusted glare.
 // See docs/OCCLUSION.md for scope, limits and integration cost.
 
 export const EARTH_RADIUS_M = 6371008.8;

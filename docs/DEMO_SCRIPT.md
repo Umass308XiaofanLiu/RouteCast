@@ -1,5 +1,7 @@
 # GlarePilot — demo video script (target 2:40, hard limit < 3:00)
 
+> **Contest-era document (v1.0-hackachusetts, 2026-10-24).** It describes the build submitted to Hackachusetts; post-hackathon features (3D terrain view, terrain check, GPS follow, overlays) are documented in README.md → *Post-hackathon development* and docs/ARCHITECTURE.md.
+
 ## Before recording
 
 - Clean browser window at ~1440 px wide, zoom 100 %, no unrelated tabs or notifications.

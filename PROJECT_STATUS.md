@@ -1,3 +1,5 @@
+> **Superseded for post-hackathon work** — current status and evidence: `CHANGELOG.md`, `docs/TESTING.md`, and the task-folder tracker `KIRO_REMAINING_GOALS.md`. The section below records the contest-night state.
+
 # GlarePilot — project status (2026-10-24 ~7:15 PM ET)
 
 **Recording / submission build (frozen):** https://umass308xiaofanliu.github.io/glarepilot/ — app code = commit `8ad2b12` (main also has docs-only commits after it). Do not redeploy visible UI until the human finishes recording.

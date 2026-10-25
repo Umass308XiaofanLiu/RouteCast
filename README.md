@@ -286,7 +286,7 @@ Calls the live services for the three presets and writes `public/fixtures/*.json
 bash scripts/deploy-gh-pages.sh
 ```
 
-Builds and pushes `dist/` to the `gh-pages` branch (requires push access). The live demo above is served by GitHub Pages. The build uses a relative base, so `dist/` also works on Cloudflare Pages or any static host. **Cloudflare Pages is not deployed** (no Cloudflare login was available); after `npx wrangler login` (or setting `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`), `npm run deploy:cloudflare` publishes `dist/` as the Pages project `glarepilot`.
+Builds and pushes `dist/` to the `gh-pages` branch (requires push access). The live demo above is served by GitHub Pages. The build uses a relative base, so `dist/` also works on Cloudflare Pages or any static host. **Cloudflare Pages is not deployed** (no Cloudflare login was available); after `npx wrangler login` (or setting `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`), `CF_BRANCH=<preview-branch> npm run deploy:cloudflare` (deferred; requires Cloudflare credentials and refuses to run without an explicit `CF_BRANCH`) publishes `dist/` to that Pages branch.
 
 ## Built with Kiro
 

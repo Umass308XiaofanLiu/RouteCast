@@ -79,7 +79,11 @@ try {
     const page = await browser.newPage();
     const errors = [];
     const warnings = [];
-    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('pageerror', (e) => {
+      errors.push(String(e));
+      console.error(`[${shot.name}] pageerror at +${Date.now() - shotT0} ms: ${e.stack || e}`); // stack → stderr.log
+    });
+    const shotT0 = Date.now();
     page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && warnings.push(m.text().slice(0, 160)));
     await page.setViewport(shot.vp);
     if (shot.reduced) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
@@ -176,7 +180,7 @@ try {
         while (Date.now() - t0 < 20000 && !(window.__gpTerrain?.state.terrain && !window.__gpTerrain.state.restoring)) await new Promise((r) => setTimeout(r, 250));
         await new Promise((r) => setTimeout(r, 4000)); // several rendered terrain frames after restore
         const st = window.__gpTerrain?.state;
-        return { supported: true, messageShownWhileLost: shown, hiddenAfterRestore: !!lost && lost.hidden, terrainBack: !!st?.terrain, restoring: st?.restoring, mapErrors: st?.errors };
+        return { supported: true, messageShownWhileLost: shown, hiddenAfterRestore: !!lost && lost.hidden, terrainBack: !!st?.terrain, restoring: st?.restoring, mapErrors: st?.errors, fbErrorsCaught: st?.fbErrors };
       });
       if (contextLoss.supported) {
         checks.contextRestoreTerrain = contextLoss.terrainBack && contextLoss.hiddenAfterRestore && contextLoss.messageShownWhileLost && !contextLoss.restoring;

@@ -202,8 +202,45 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
   // stop playback, show an explanation inside this view and recover if the context returns.
   let contextLost = false;
   const LOST_MSG = '3D terrain paused: the browser lost its WebGL graphics context. Switch to 3D or 2D view, or wait for it to recover.';
+  // While lost, MapLibre still renders when tiles arrive (its frame is only aborted once), and
+  // creating the terrain render-to-texture / hillshade framebuffers on a lost context throws
+  // "Framebuffer is not complete" (checkFramebufferStatus returns 0). So snapshot the style,
+  // then drop terrain and hide hillshade until the context is back (restored below).
+  let lostStyle = null;
+  // Last-resort guard (MapLibre 4.7.1 pinned): its ResizeObserver calls map.redraw() synchronously,
+  // also in the window around a context loss/restore, and an uncaught "Framebuffer is not complete"
+  // from the terrain depth/coords framebuffer would surface as a page error. Catch exactly that
+  // error in the render call, log it once (throttled logger), and rebuild the terrain on the next
+  // tick if the context is usable; anything else is rethrown.
+  let fbErrors = 0;
+  const render0 = typeof map._render === 'function' ? map._render.bind(map) : null;
+  if (render0) {
+    map._render = (t) => {
+      try {
+        return render0(t);
+      } catch (err) {
+        if (!/Framebuffer is not complete/.test(err?.message || '')) throw err;
+        if (fbErrors++ === 0) logError(err);
+        setTimeout(() => {
+          if (destroyed || contextLost || restoring) return;
+          try {
+            map.setTerrain(null);
+            map.setTerrain(TERRAIN);
+          } catch (e) { logError(e); }
+        }, 0);
+        return map;
+      }
+    };
+  }
   map.on('webglcontextlost', () => {
     contextLost = true;
+    try {
+      lostStyle = map.getStyle();
+      map.setTerrain(null);
+      map.setLayoutProperty('hillshade', 'visibility', 'none');
+    } catch (err) {
+      logError(err);
+    }
     stopPlayback(true);
     hud.lost.textContent = LOST_MSG;
     hud.lost.hidden = false;
@@ -223,7 +260,8 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
     restoring = true;
     let snapshot = null;
     try {
-      snapshot = map.getStyle();
+      snapshot = lostStyle || map.getStyle();
+      lostStyle = null;
       map.setTerrain(null);
       map.setStyle(snapshot, { diff: false });
     } catch (err) {
@@ -531,7 +569,7 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
         const c = map.getCenter();
         camera = { lon: c.lng, lat: c.lat, zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
       } catch { /* ignore */ }
-      return { cur: Math.round(cur), preview: displayIdx() - Math.round(cur), level, playing, flying, camera, visible, contextLost, errors: errorCount, restoring, terrain: (() => { try { return !!map.getTerrain(); } catch { return null; } })(), noteExpanded: !hud.note.hidden, destroyed, timers: Number(!!raf) + Number(!!stepTimer), fx: fx.state };
+      return { cur: Math.round(cur), preview: displayIdx() - Math.round(cur), level, playing, flying, camera, visible, contextLost, errors: errorCount, restoring, fbErrors, terrain: (() => { try { return !!map.getTerrain(); } catch { return null; } })(), noteExpanded: !hud.note.hidden, destroyed, timers: Number(!!raf) + Number(!!stepTimer), fx: fx.state };
     },
     map,
   };

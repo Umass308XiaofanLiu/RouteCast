@@ -1,8 +1,12 @@
 # Terrain sun-occlusion — prototype assessment
 
-Status (2026-10-24, branch b1-occlusion-real, local only): the horizon library is wired into an
+Status (2026-10-24, 23:24 EDT, `local-integration` @ 816df5c, local only, not deployed): the horizon
+library drives an ON-DEMAND (or opt-in automatic) "terrain check" on each glare card and a SEPARATE
+terrain-adjusted glare figure (card line, hatched timeline stretches, KPI subtext). It is still NOT
+part of the geometric/expected glare score, advice severity or optimizer.
+(Original status, branch b1-occlusion-real: the horizon library is wired into an
 ON-DEMAND, separate "terrain check" line on each glare recommendation card. It is still NOT part of
-the glare score. Real-tile validation (below) and sampler robustness were added on this branch.
+the glare score.) Real-tile validation (below) and sampler robustness were added on this branch.
 The original prototype assessment follows the integration section.
 
 ## Validation on real AWS terrarium z12 tiles (2026-10-24)
@@ -179,7 +183,9 @@ hide the sun", never "the road is in shade".
 - Never silently lower or zero the glare score. If ever combined, keep the geometric score visible
   and present the terrain hint beside it.
 
-## Remaining effort (realistic)
+## Remaining effort (realistic) — historical pre-integration estimate
+
+Most items below were done on 2026-10-24 (see the integration sections above); kept for the record.
 - Browser tile fetch + canvas decode + cache + rate limits/attribution: 0.5–1 day.
 - Wire into trip evaluation as a separate field (async, off the main path, cancellable): 0.5 day.
 - UI label + legend + accessibility text: 0.5 day.

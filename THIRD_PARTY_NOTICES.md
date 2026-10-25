@@ -220,3 +220,25 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 - **OpenStreetMap** raster tiles for the terrain view basemap: © OpenStreetMap contributors, https://www.openstreetmap.org/copyright .
 - **OpenFreeMap** vector tiles (https://tiles.openfreemap.org/planet, OpenMapTiles schema, `building` layer, zoom 14+) for the terrain view's extruded 3D buildings, fetched at runtime, not bundled. Required attribution per https://openfreemap.org/ (checked 2026-10-24): "OpenFreeMap © OpenMapTiles Data from OpenStreetMap" — shown in the map's attribution control (collapsed behind the (i) button on cards narrower than 1200 px). Building data © OpenStreetMap contributors (ODbL 1.0); schema © OpenMapTiles.
 
+
+## Keyless traffic overlay data (integration branch only, fetched on click, not bundled)
+
+- **NYC DOT Traffic Speeds** — NYC Open Data (Socrata) dataset `i4gi-tjb9`,
+  https://data.cityofnewyork.us/resource/i4gi-tjb9.json , published by the NYC Department of
+  Transportation. The dataset metadata returned no license field in a 2026-10-24 probe, and the NYC
+  Open Data terms of use were not read (UNVERIFIED); the app labels every value "NYC DOT speeds as of
+  HH:MM (current, not a forecast)". A small recorded sample is kept in
+  `tests/fixtures/overlays/nycdot-speeds-sample.json` for tests only.
+- **INDOT work zones (WZDx)** — Indiana Department of Transportation feed
+  https://in.carsprogram.org/carsapi_v1/api/wzdx . The feed's own `license` field is
+  `https://creativecommons.org/publicdomain/zero/1.0/` (CC0 1.0), as recorded in
+  `tests/fixtures/overlays/indot-wzdx-sample.json`; licensing is declared per feed, so other WZDx
+  feeds may differ. The app labels zones "Work zone reported by INDOT (as of feed time HH:MM)".
+
+## Demo video narration (release asset only, not part of the app)
+
+The narrated demo video attached to the `v1.0-hackachusetts` GitHub release uses synthetic speech
+generated offline with Piper TTS (`piper-tts` 1.3.0, GPL-3.0-or-later; the engine license applies to
+the software, not the generated audio) and the voice `en_US-ljspeech-medium` from
+`rhasspy/piper-voices` (MIT), trained on the LJ Speech dataset (public domain). Neither Piper nor the
+voice model is bundled in the app or `dist/`. Details: `docs/media/README.md`.

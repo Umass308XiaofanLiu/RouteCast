@@ -7,7 +7,8 @@
 //   npx vite preview --host 127.0.0.1 --port 4193 --strictPort &
 //   xvfb-run -a -s "-screen 0 1600x1000x24" node tests/e2e/terrain-visual.mjs [outDir]
 //
-// Env: BASE_URL (default http://127.0.0.1:4193/), CHROME_PATH (default /opt/google/chrome/chrome).
+// Env: BASE_URL (default http://127.0.0.1:4193/), CHROME_PATH (default /opt/google/chrome/chrome),
+// ONLY (regex on shot names, e.g. ONLY=^fx- for the weather/light/wind overlay shots).
 // Writes terrain-integration-*.png into outDir (default /tmp/gp_terrain_visual) and prints a
 // JSON summary (page errors, console warnings, HUD overlap checks) per shot. Inspect the PNGs.
 import puppeteer from 'puppeteer-core';
@@ -25,6 +26,14 @@ const SHOTS = [
   { name: 'sunset-glare-desktop', demo: 'sunset-glare', vp: { width: 1440, height: 1000 } },
   { name: 'sunset-glare-mobile', demo: 'sunset-glare', vp: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   { name: 'nyc-close-desktop', demo: 'congestion-shift', vp: { width: 1440, height: 1000 }, end: true, close: true, loseContext: true },
+  // weather / light / wind overlay (src/ui/terrainfx.js); `scrub` = fraction of the trip
+  { name: 'fx-storm-desktop', demo: 'storm-crosswind', vp: { width: 1440, height: 1000 }, scrub: 0.45 },
+  { name: 'fx-storm-mobile', demo: 'storm-crosswind', vp: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, scrub: 0.45 },
+  { name: 'fx-snow-night-desktop', demo: 'snow-fog-night', vp: { width: 1440, height: 1000 }, scrub: 0.3 },
+  { name: 'fx-fog-night-mobile', demo: 'snow-fog-night', vp: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, scrub: 0.72 },
+  { name: 'fx-sunset-close-desktop', demo: 'sunset-glare', vp: { width: 1440, height: 1000 }, close: true, toGlare: true },
+  { name: 'fx-sunset-mobile', demo: 'sunset-glare', vp: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, toGlare: true },
+  { name: 'fx-storm-reduced', demo: 'storm-crosswind', vp: { width: 1440, height: 1000 }, scrub: 0.45, reduced: true },
   { name: 'nyc-close-mobile', demo: 'congestion-shift', vp: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, end: true, close: true },
 ];
 
@@ -63,13 +72,14 @@ const browser = await puppeteer.launch({
 });
 const summary = [];
 try {
-  for (const shot of SHOTS) {
+  for (const shot of SHOTS.filter((s) => !process.env.ONLY || new RegExp(process.env.ONLY).test(s.name))) {
     const page = await browser.newPage();
     const errors = [];
     const warnings = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && warnings.push(m.text().slice(0, 160)));
     await page.setViewport(shot.vp);
+    if (shot.reduced) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
     await page.goto(`${BASE}?demo=${shot.demo}&view=terrain`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('#terrain canvas.maplibregl-canvas') || !document.getElementById('terrain-msg').hidden, { timeout: 60000 });
     const canvas = await page.$('#terrain canvas.maplibregl-canvas');
@@ -78,6 +88,26 @@ try {
         s.value = s.max;
         s.dispatchEvent(new Event('input', { bubbles: true }));
       });
+    }
+    if (canvas && shot.scrub != null) {
+      await page.$eval('#scrub', (s, f) => {
+        s.value = String(Math.round(Number(s.max) * f));
+        s.dispatchEvent(new Event('input', { bubbles: true }));
+      }, shot.scrub);
+    }
+    if (canvas && shot.toGlare) {
+      // scrub to the first sample whose expected glare is ≥ 2 (read from the overlay's dataset)
+      await sleep(1500);
+      const max = await page.$eval('#scrub', (s) => Number(s.max));
+      for (let k = 0; k <= 60; k++) {
+        const g = await page.$eval('#scrub', (s, v) => {
+          s.value = String(v);
+          s.dispatchEvent(new Event('input', { bubbles: true }));
+          return Number(document.querySelector('#terrain canvas.terrain-fx')?.dataset.glare);
+        }, Math.round((max * k) / 60));
+        await sleep(120);
+        if (g >= 2) break;
+      }
     }
     if (canvas && shot.close) {
       for (let k = 0; k < 4; k++) {
@@ -92,6 +122,14 @@ try {
     const level = await page.$eval('#terrain [data-hud="level"]', (e) => e.textContent).catch(() => null);
     const where = await page.$eval('#terrain [data-hud="where"]', (e) => e.textContent).catch(() => null);
     const gps = await page.$eval('#gps-bar', (e) => ({ visible: !!e.offsetParent, text: e.innerText.replace(/\s+/g, ' ').trim() })).catch(() => null);
+    // overlay state: what the effects canvas drew for the represented row, and whether it animates
+    const fx = await page.evaluate(async () => {
+      const c = document.querySelector('#terrain canvas.terrain-fx');
+      if (!c) return null;
+      const d1 = c.toDataURL();
+      await new Promise((r) => setTimeout(r, 400));
+      return { ...c.dataset, hidden: c.hidden, pointerEvents: getComputedStyle(c).pointerEvents, frameChanged: c.toDataURL() !== d1 };
+    });
     const file = join(OUT, `terrain-integration-${shot.name}.png`);
     const el = await page.$('#terrain:not([hidden])') || await page.$('#chase');
     await page.screenshot({ path: file, fullPage: false });
@@ -113,7 +151,7 @@ try {
         return { supported: true, messageShownWhileLost: shown, hiddenAfterRestore: !!lost && lost.hidden };
       });
     }
-    summary.push({ shot: shot.name, file, webglCanvas: !!canvas, level, where, gps, ...info, contextLoss, errors, warnings: warnings.length, warningSample: warnings.slice(0, 3) });
+    summary.push({ shot: shot.name, file, webglCanvas: !!canvas, fx, level, where, gps, ...info, contextLoss, errors, warnings: warnings.length, warningSample: warnings.slice(0, 3) });
     await page.close();
   }
 } finally {

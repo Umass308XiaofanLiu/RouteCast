@@ -8,6 +8,7 @@ import { pointAtDistance, compass } from '../lib/geo.js';
 import { rowConditions, COND_ORDER, COND_LABEL } from '../lib/conditions.js';
 import { COND_RING } from './condlayer.js';
 import { formatClock, formatDuration } from '../lib/time.js';
+import { createTerrainFx } from './terrainfx.js';
 
 const LEVELS = [
   { name: 'Close', zoom: 14, pitch: 74, ahead: 350 },
@@ -85,7 +86,7 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     <div class="chase-top">
       <span class="chase-tag">Simulated playback of the planned route · real terrain (AWS Terrain Tiles) · not GPS</span>
       <span class="chase-where" data-hud="where"></span>
-      <span class="terrain-note" data-hud="note">Loads online map + elevation tiles; scenario weather stays hand-set · hillshade light follows the sun azimuth (visual only, not used for glare)</span>
+      <span class="terrain-note" data-hud="note">Loads online map + elevation tiles; scenario weather stays hand-set · sky, sun glow, rain/snow, fog, night and wind effects and hillshade light follow the represented sample (visual only, not used for glare)</span>
     </div>
     <div class="chase-ahead terrain-ahead" data-hud="ahead"></div>
     <div class="chase-controls" role="group" aria-label="3D terrain controls">
@@ -187,6 +188,8 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
   const carEl = document.createElement('div');
   carEl.className = 'terrain-car';
   carEl.setAttribute('aria-label', 'Simulated playback position');
+  // weather / light / wind overlay for the represented row (visual only; see terrainfx.js)
+  const fx = createTerrainFx(map.getCanvasContainer(), { map, motionOk, getFmt, after: map.getCanvas() });
   const car = new maplibregl.Marker({ element: carEl, rotationAlignment: 'map', pitchAlignment: 'viewport' }).setLngLat([-72.52, 42.37]).addTo(map);
 
   let model = null;
@@ -248,6 +251,7 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
       lastAz = az;
       map.setPaintProperty('hillshade', 'hillshade-illumination-direction', ((az % 360) + 360) % 360);
     }
+    fx.setRow(ev.rows[i], [smp.lon, smp.lat]);
     updateHud();
   }
 
@@ -328,7 +332,9 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
       if (!on) {
         // hidden: stop timers and any in-flight camera ease so nothing keeps re-rendering
         stopPlayback(false);
+        fx.show(false);
       } else {
+        fx.show(true);
         try { map.resize(); } catch (err) { logError(err); }
         updateHud();
         safeFollow(true);
@@ -359,12 +365,13 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
       destroyed = true;
       visible = false;
       window.removeEventListener('resize', onResize);
+      try { fx.destroy(); } catch { /* ignore */ }
       try { car.remove(); } catch { /* ignore */ }
       try { map.remove(); } catch { /* ignore */ }
       root.innerHTML = '';
     },
     get state() {
-      return { cur: Math.round(cur), level, playing, visible, contextLost, errors: errorCount, destroyed, timers: Number(!!raf) + Number(!!stepTimer) };
+      return { cur: Math.round(cur), level, playing, visible, contextLost, errors: errorCount, destroyed, timers: Number(!!raf) + Number(!!stepTimer), fx: fx.state };
     },
     map,
   };

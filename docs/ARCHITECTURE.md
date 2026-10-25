@@ -1,9 +1,12 @@
-# GlarePilot architecture
+# RouteCast architecture
 
-Static single-page app (Vite 5, vanilla ES modules). There is no GlarePilot server: every request
+Static single-page app (Vite 5, vanilla ES modules). There is no RouteCast server: every request
 goes from the browser directly to a public service. State described here is the post-hackathon
-v1.1.0 release (checked against the code at 816df5c/d8a745e, 2026-10-24/25), which is what the
-GitHub Pages demo serves; the contest build is preserved as `v1.0-hackachusetts`.
+v1.1 release served by GitHub Pages (checked against the code at 816df5c/d8a745e, 2026-10-24/25;
+v1.1.1 only renamed the app). The contest build is preserved as `v1.0-hackachusetts`.
+
+RouteCast was named GlarePilot until 2026-10-25. The repository, the live URL and the
+`glarepilot.*` storage keys keep the original name.
 
 ## Module map
 

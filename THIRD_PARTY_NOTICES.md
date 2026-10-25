@@ -1,6 +1,6 @@
 # Third-party notices
 
-GlarePilot's own code is not yet under a chosen license (see README). This file lists third-party software bundled in or used to build the app, and the data services it uses.
+RouteCast's (formerly GlarePilot) own code is not yet under a chosen license. This file lists third-party software bundled in or used to build the app, and the data services it uses.
 
 ## Runtime libraries bundled into the build
 

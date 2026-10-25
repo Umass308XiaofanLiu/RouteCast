@@ -1,4 +1,4 @@
-# Traffic-aware timing — source assessment (GlarePilot)
+# Traffic-aware timing — source assessment (RouteCast, formerly GlarePilot)
 
 ## Implementation status (2026-10-24, 22:05 EDT, branch b1-traffic-overlays)
 

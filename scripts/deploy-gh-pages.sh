@@ -16,6 +16,6 @@ touch "$WORK/.nojekyll"
 cd "$WORK"
 git add -A
 if git diff --cached --quiet; then echo "gh-pages already up to date"; exit 0; fi
-git commit --quiet -m "Deploy GlarePilot $SHA (static Vite build)"
+git commit --quiet -m "Deploy RouteCast $SHA (static Vite build)"
 git push --quiet origin gh-pages
 echo "Deployed $SHA to gh-pages"

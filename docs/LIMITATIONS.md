@@ -1,7 +1,7 @@
-# GlarePilot limitations
+# RouteCast limitations
 
-Honest scope of the v1.1.0 post-hackathon release (2026-10-25). The live GitHub Pages
-demo serves this release; the contest build (`v1.0-hackachusetts`) has none of the post-hackathon features.
+Honest scope of the v1.1 post-hackathon release (v1.1.0, renamed RouteCast in v1.1.1, 2026-10-25). The live
+GitHub Pages demo serves this release; the contest build (`v1.0-hackachusetts`) has none of the post-hackathon features.
 
 ## Timing and traffic
 
@@ -13,7 +13,7 @@ demo serves this release; the contest build (`v1.0-hackachusetts`) has none of t
   routes entering NYC with a departure within 60 min of now and `data_as_of` ≤ 20 min old (a probe on
   2026-10-24 found the feed ~1.5 h old, so "too old to use" is common); work zones only from INDOT
   (Indiana). Overlays never change timing automatically; free-flow references (50/30 mph) are
-  GlarePilot assumptions.
+  RouteCast assumptions.
 - Provider traffic (TomTom/HERE/Mapbox) is **experimental and hidden** (`?experimental=traffic`),
   tested only against mocked responses built from documentation. No real provider call has been
   made; live behaviour is UNVERIFIED. The optimizer reuses one plan's traffic timing for all bars.

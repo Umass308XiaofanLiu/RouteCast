@@ -37,7 +37,7 @@ export async function buildTripModel({ origin, dest, departureUtc, breakPlan = B
     warnings = [...warnings, ...r.warnings];
   }
   if (route.totalSec > MAX_TRIP_HOURS * 3600) {
-    throw new Error(`This route is ${Math.round(route.totalSec / 3600)} h of driving; GlarePilot supports trips up to ${MAX_TRIP_HOURS} h.`);
+    throw new Error(`This route is ${Math.round(route.totalSec / 3600)} h of driving; RouteCast supports trips up to ${MAX_TRIP_HOURS} h.`);
   }
   const samples = resampleRoute(route, 1000, 600);
   const pointIdx = pickForecastPoints(samples);

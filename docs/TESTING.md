@@ -1,4 +1,4 @@
-# Testing GlarePilot
+# Testing RouteCast
 
 All suites run locally without API keys. Unit and E2E tests never touch the real network; the visual
 suite loads only `?demo=` scenarios but fetches public map/terrain/building tiles.

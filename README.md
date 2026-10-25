@@ -1,252 +1,157 @@
-# GlarePilot
+# RouteCast — Weather-Aware Trip Planning
 
-Route-time weather and sunlight planning for long US drives: the forecast, the sun and the low-sun glare for the places **and the times** you will actually be on the road.
+<p align="center">
+  <a href="https://youtu.be/o3GfF2jkngo">
+    <img src="docs/media/glarepilot-project-cover-1200x800.jpg" alt="Cover of the original GlarePilot demo video: route map with projected conditions and the 3D chase preview at a low-sun stretch near Lorain, Ohio" width="900">
+  </a>
+</p>
 
-### ▶ [Watch the demo on YouTube](https://youtu.be/o3GfF2jkngo)
+<p align="center">
+  <strong><a href="https://umass308xiaofanliu.github.io/glarepilot/">Open the live app</a></strong>
+  · <a href="https://youtu.be/o3GfF2jkngo">Watch the original 2:50 demo on YouTube</a>
+  · <a href="https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts">release MP4</a>
+  · <a href="docs/media/glarepilot-demo.en.srt">English captions</a>
+</p>
 
-[![GlarePilot: route map with projected conditions and the 3D chase preview at the low-sun stretch — click to watch the demo on YouTube](docs/media/glarepilot-project-cover-1200x800.jpg)](https://youtu.be/o3GfF2jkngo)
+RouteCast plans long US drives by time as well as by place. It routes the trip, works out when
+you will reach each kilometer of the route, and evaluates the hourly weather forecast and the sun's
+position for that place at that time. The result shows where low sun will sit in front of the
+windshield, where rain, snow, fog or strong crosswinds are expected, how much of the drive falls
+after dark, and whether leaving earlier or later would avoid the worst of it.
 
-<sub>Built from real screenshots of the live app: recorded real-data snapshot (Amherst → Chicago, route and forecast captured Oct 24, 2026) — 2D route map with projected conditions and the 3D chase preview at the low-sun stretch near Lorain, OH (simulated playback of the planned route, not GPS).</sub>
+It is a static web app with no backend, no account and no API key. Guidance comes from a
+deterministic rules engine that reports the values behind every recommendation; no generative AI
+runs in the app. The project was built with Kiro CLI for Hackachusetts 2026 under the name
+GlarePilot; the repository address and the live URL keep that name.
 
-**Live demo:** https://umass308xiaofanliu.github.io/glarepilot/ — free, no login, no API key. It now runs **v1.1** (post-hackathon release); the build submitted to Hackachusetts is preserved as tag and release [`v1.0-hackachusetts`](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts).
+The live site runs **v1.1.1**. The build submitted to Hackachusetts is preserved as
+[`v1.0-hackachusetts`](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts).
+The demo video was recorded from that original GlarePilot build and uses a synthetic
+text-to-speech voice. Features added in v1.1 are therefore not shown in it: the 3D terrain view,
+the terrain check, location follow and the traffic overlays. The screenshots below also predate
+the rename.
 
-| Quick link | What it opens |
-|---|---|
-| [`?preset=chicago-sunset`](https://umass308xiaofanliu.github.io/glarepilot/?preset=chicago-sunset) | Amherst, MA → Chicago, IL tomorrow 8:00 AM EDT, **live** route + forecast |
-| [`?snapshot=chicago-sunset`](https://umass308xiaofanliu.github.io/glarepilot/?snapshot=chicago-sunset) | Same trip from a **recorded snapshot** (works if public APIs are down) |
-| [`?demo=congestion-shift`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift) | **Manual demo scenario** (synthetic): an assumed 75 min mid-route delay pushes the New York arrival into hand-set rain and darkness |
-| [`?demo=sunset-glare&view=3d`](https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d) | **Manual demo scenario** (synthetic, clear skies) opened in the **3D chase preview** |
-| [`?demo=storm-crosswind&view=terrain`](https://umass308xiaofanliu.github.io/glarepilot/?demo=storm-crosswind&view=terrain) | **3D terrain view** (needs WebGL; synthetic rain + crosswind over real terrain) |
-| [`?demo=congestion-shift&view=terrain`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift&view=terrain) | **3D terrain + buildings** — move the timeline to the New York end and pick the Close camera |
+## Data modes
 
-**Demo video:** https://youtu.be/o3GfF2jkngo — public operation demo video, posted on YouTube after the SundAI submission locked. The SundAI entry itself links the GitHub-hosted MP4 in [release v1.0-hackachusetts](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts), a narrated + captioned recording (synthetic TTS narration) with an SRT file; transcript of that release video: [docs/media/TRANSCRIPT.md](docs/media/TRANSCRIPT.md).
-
-Hackachusetts 2026 entry. Built with Kiro CLI — see [docs/SUBMISSION.md](docs/SUBMISSION.md).
-
-![Desktop: Amherst to Chicago with KPIs, glare-colored route map and hour-by-hour timeline](docs/screenshots/desktop-chicago-sunset.png)
-
-| Mobile: Albany → Boston sunrise | Desktop full page: Albany → Boston sunrise |
-|---|---|
-| <img src="docs/screenshots/mobile-boston-sunrise.png" width="260" alt="Mobile layout of the Albany to Boston sunrise trip"> | <img src="docs/screenshots/desktop-boston-sunrise-full.png" width="520" alt="Full desktop page of the Albany to Boston sunrise trip"> |
-
-Screenshots were captured from the live site with live data on 2026-10-24 (for departures on 2026-10-25). Live numbers change with each forecast run. Screenshots of the newer modes (manual demo scenarios, delay card, condition icons) are in [docs/qa/](docs/qa/), e.g. [docs/qa/e2e-demo-congestion.png](docs/qa/e2e-demo-congestion.png).
-
----
-
-## What's new in v1.1 (post-hackathon, live)
-
-The live demo runs v1.1. The contest submission is unchanged and preserved as [`v1.0-hackachusetts`](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts). Details: [CHANGELOG.md](CHANGELOG.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
-
-- **3D terrain + buildings view** (MapLibre GL 4.7.1, AWS Terrain Tiles, OpenFreeMap buildings) with weather, light and wind effects (rain/snow, fog, night + headlights, low-sun glow, wind gauge). WebGL verified only with SwiftShader under Xvfb.
-- **Shared controls and transitions** across 2D map, 3D chase and 3D terrain: one selected time, preview/return, Play, camera levels, fly-in and cross-fade transitions.
-- **Approximate terrain check** per glare window plus a **separate terrain-adjusted glare** figure (on demand; optional auto-run is opt-in). It never changes the main glare score.
-- **Optional GPS follow** snapped to the planned route, with hysteresis and an accuracy circle. Off until clicked; coordinates never stored or sent. **Emulated-geolocation tests only.**
-- **Keyless overlays** on click in real-data mode: NYC DOT real-time speeds (near-now departures only) and INDOT work zones. Never applied to timing automatically.
-- **Experimental provider traffic** (TomTom/HERE/Mapbox with your own key), hidden behind `?experimental=traffic`. Mock-tested only; **unverified** against real provider responses.
-
----
-
-## The problem
-
-Route apps show the weather *now* along the line, and weather apps show a city. Neither tells you whether, on a 14-hour westbound drive, you will reach Ohio just as the sun drops low straight ahead, or whether rain will be at the state line at the hour you get there. Low sun in the driver's eyes is a common, predictable hazard: it depends only on where you are, when, and which way the road points.
-
-## What it does
-
-1. Search a US origin and destination (or pick a demo trip) and enter the departure as wall-clock time **in the origin's time zone**.
-2. Route with per-segment routed travel time (Valhalla, OSRM fallback). Optional break plan: none, 15 min every 2 h, or 30 min every 3 h.
-3. Resample the route every 1 km with a smoothed heading and compute the arrival time at each sample.
-4. Fetch one multi-location hourly forecast for up to 40 checkpoints and pick the value valid **at each sample's arrival time**.
-5. Compute sun altitude/azimuth at each sample and time and compare it to the heading: forward glare, low sun behind you, twilight and night.
-6. Derive driving implications: rain, heavy rain, snow, ice/freezing precipitation, fog/low visibility, thunderstorms, crosswind and headwind from gusts, cold, darkness and fatigue.
-7. Re-evaluate the same route for departures from −3 h to +3 h and suggest a better departure when the difference is meaningful.
-8. Show a prioritized briefing where every item says **when, where, why** (the triggering values) and what to do.
-
-UI: KPI strip (drive, arrival, glare, after dark, wet/snowy, temperature), Leaflet map with **Sun glare / Weather / Daylight** layers and legend, SVG hour-by-hour timeline with a scrubber, sun-vs-heading compass, moment card for the selected point, "When should I leave?" optimizer bars, checkpoint table, °F·mi / °C·km toggle, vehicle type (car/SUV, van/truck/RV, motorcycle), loading/error/empty states, and a mobile layout.
-
-## Two data modes
-
-A switch at the top of the side panel selects one of two clearly labeled modes.
-
-**Real-data planning (real forecast planning).** A live Valhalla route (OSRM fallback) and an Open-Meteo forecast are retrieved now, and each route point is evaluated at its **projected future arrival time** = departure + routed drive time + optional breaks + optional assumed delay. The provenance strip shows the retrieval time and the projected departure/arrival. This is **not a current-conditions dashboard**. Recorded real-data snapshots (`?snapshot=chicago-sunset|boston-sunrise|nyc-evening`) are kept distinct: they are labeled "Recorded real data — not current" with their retrieval time.
-
-**Manual demo scenarios.** `?demo=storm-crosswind|sunset-glare|snow-fog-night|congestion-shift` (or the "Manual demo scenarios" button). Weather and delay values are **deliberately hand-set synthetic values** (`src/lib/scenarios.js`) laid over a recorded real Valhalla route, so the features can be shown reproducibly. No weather, routing or traffic API is called; only OpenStreetMap map tiles load (on the branch, opening the 3D terrain view or running the terrain check also loads elevation/building tiles). Every scenario is labeled "Manual demo scenario — synthetic data".
-
-| Scenario | Route (recorded) | Departure | Hand-set conditions |
-|---|---|---|---|
-| `storm-crosswind` | Amherst → New York | 1:00 PM | Heavy rain over the middle of the drive, westerly gusts up to 85 km/h; vehicle van/truck |
-| `sunset-glare` | Amherst → Chicago | 8:00 AM | Clear skies everywhere, so low sun ahead near Lake Erie is not softened |
-| `snow-fog-night` | Albany → Boston | 7:30 PM | Snow over the Berkshires, freezing fog near Worcester, after dark |
-| `congestion-shift` | Amherst → New York | 3:30 PM | Dry until 6:15 PM, then rain and gusts at the New York end; assumed +75 min mid-route delay |
-
-## What is forecast vs computed vs estimated vs assumed
-
-- **Forecast:** Open-Meteo model weather for the hour each point is reached (synthetic hand-set values in manual demo scenarios).
-- **Computed:** SunCalc sun position and glare for each point's future arrival time and heading.
-- **Estimated:** arrival times from free-flow routing (Valhalla / OSRM).
-- **Assumed:** the traffic delay you choose (or the scenario's hand-set delay).
-- **Observed / live:** none by default. GlarePilot shows no current conditions and does not track your location unless you opt in: the keyless overlays (current NYC DOT speeds, reported INDOT work zones) and optional GPS follow are explicitly labeled and never change the forecast or timing automatically.
-
-The same breakdown is in the "What is forecast, computed, estimated or assumed?" disclosure under the provenance strip.
-
-## Traffic delay assumptions
-
-No live or predictive traffic provider is connected by default (the experimental provider routing below needs `?experimental=traffic` and your own key). The free public Valhalla and OSRM servers return free-flow times; a Valhalla request with a `date_time` returned the same 10,475 s for Amherst → New York as without it. Traffic-aware APIs (TomTom, HERE, Google) need API keys, which were not available.
-
-Instead, the "Traffic delay assumption" control lets you add +15 min … +2 h of extra time **spread linearly** over a chosen stretch: whole trip, first quarter, mid-route (37.5–62.5 % of the distance) or last quarter (`makeDelay` / `congestionAt` in `src/lib/trip.js`). Points before the stretch are unaffected, points inside it are partially delayed, and every later point is delayed in full; its arrival time, forecast hour, sun position and glare are recomputed. The "What the assumed delay changes" card compares arrival, wet roads, strong glare, after dark, crosswind and snow/ice minutes with and without the delay. The forecast is fetched for departure −3.5 h … arrival +5.5 h (`src/lib/planner.js`), so delays up to 2 h need no refetch.
-
-## Keyless live overlays (NYC DOT speeds, INDOT work zones)
-
-Real-data plans only — never in synthetic demo (`?demo=`) or recorded-snapshot mode — and only on demand: after planning, **Check live traffic overlays** appears when a source is relevant (`src/lib/traffic/overlays/`). A normal plan makes no overlay requests.
-
-- **NYC DOT real-time speeds** (NYC Open Data `i4gi-tjb9`, keyless, CORS `*`): offered only when the departure is within 60 min of now and the route enters NYC; used only when the newest `data_as_of` is at most 20 min old (otherwise a muted "NYC DOT speeds are as of HH:MM, too old to use"). Slow links on the route (within 150 m; speed < 50 % of an assumed free-flow reference of 50 mph highway / 30 mph other, or < 15 mph on highways) are drawn in red and listed as "NYC DOT speeds as of HH:MM (current, not a forecast)". Arrival times are never changed automatically: **Add as delay assumption** copies a rounded-up suggestion into the manual delay control.
-- **INDOT WZDx work zones** (`in.carsprogram.org`, keyless, CORS `*`): zones within 150 m of the route (two vertices for lines, to skip crossing roads) and active at the projected arrival there become "WZ" map markers and the advice line "Work zone reported by INDOT (as of feed time HH:MM)". They never change timing.
-- Fetches have a 12 s timeout, abort when a new trip starts, and failures become a small muted note; planning is unaffected.
-
-## Optional traffic-aware routing (your own API key) — experimental
-
-Hidden unless the URL has `?experimental=traffic` (or `localStorage["glarepilot.experimental.traffic"] = "1"`); when shown it is labelled "Experimental — not verified against real provider responses", and without the flag no provider is ever called. Off by default; without a key the app behaves exactly as above. In Real-data mode, open **Traffic-aware routing (needs your own API key)** under the trip form, choose TomTom, HERE or Mapbox and paste your own key. The key is kept in memory only unless you tick **Remember on this device** (then `localStorage["glarepilot.traffic.v1"]`); **Clear key** removes it from the page and the device. It is sent only to the chosen provider, directly from the browser (this is a static site — there is no GlarePilot server), and is never logged or shown in messages. Because the key is in the browser, use a key restricted to your own domain/localhost where the provider supports that.
-
-- Adapters (`src/lib/traffic/`): `routeWithTraffic(origin, dest, { provider, departureUtc, apiKey, fetchImpl, signal })` returns the normal route shape plus `traffic: { provider, mode, departureUtc, retrievedAt, freeFlowSec, trafficDelaySec, timing, note }`.
-  - **TomTom** Calculate Route: `traffic=true`, `departAt`, `sectionType=traffic`, `computeTravelTimeFor=all`, `instructionsType=coded`. Per-instruction cumulative times (else traffic-section delays) become per-point times; free-flow = `noTrafficTravelTimeInSeconds`, delay = `trafficDelayInSeconds`.
-  - **HERE** Routing v8: `departureTime`, `return=polyline,summary,travelSummary`, `spans=duration,length`; includes a Flexible Polyline decoder tested against the official example. Delay = `duration − baseDuration`.
-  - **Mapbox** Directions `driving-traffic`: `annotations=duration,distance` (per-segment); `depart_at` only for future departures (never in the past; capped at the app's 14-day horizon — the docs page did not state an explicit window). With `depart_at` Mapbox's duration is a historical prediction and it reports no free-flow time, so no delay figure is invented.
-  - A provider that returns only a total is labelled **scaled total, not per-segment**.
-- Semantics: departures more than 30 min ahead are labelled **predictive (provider historical/typical traffic for that departure time)**; near-now departures **live traffic**. The provenance strip shows provider · mode, retrieval time, with-traffic vs free-flow time and the traffic delay. Your manual delay assumption remains a separate, labelled user assumption added on top; it is never called traffic.
-- The resulting per-point times feed arrival times, forecast hours, sun position/glare and the optimizer. The optimizer makes **one traffic request per plan**: other departure bars reuse this plan's traffic timing (labelled under the chart).
-- Failures (401 invalid key, 403 not enabled/restricted, 429 rate/quota, timeouts) show a visible warning and fall back to free-flow Valhalla/OSRM routing.
-- Cost/quota: all three require an account and key; each currently advertises a free usage tier, but quotas, prices and terms change — check the provider's pricing page before use. Tests use mocked responses built from the documented formats; **no real provider call has been made**, so live response details remain unverified.
-
-## Route condition icons
-
-- Original inline SVG icons written for this project (`src/ui/condlayer.js`); no third-party icon assets.
-- Categories: strong low sun ahead, sun aligned but clouds forecast, snow/ice, rain, fog/low visibility, strong crosswind gusts, assumed traffic delay, dark.
-- Icons are placed only at route samples where that condition is projected at the arrival time (`src/lib/conditions.js`), then thinned in screen space for the current zoom so they do not overlap.
-- The delay icon appears only when a delay is set and is labeled as a scenario or assumed delay.
-- Animations are CSS transform/opacity loops with cycles of 1.6 s or longer and no flashing. The **Animation: on/off** toggle stops them; `prefers-reduced-motion: reduce` disables them by default.
-
-## 2D overview and 3D chase preview
-
-- **2D overview:** north-up Leaflet map with the Sun glare / Weather / Daylight layers and condition icons.
-- **3D chase preview:** a lightweight Canvas 2D perspective projection of the actual route geometry, seen from behind and above a **simulated playback position** on the planned route. It has no terrain, buildings or WebGL; it is not GPS navigation, although the optional GPS follow (below) can move the shared playback position.
-- Sky, sun, clouds, rain, snow, fog, wind streaks, night, headlights and assumed-delay tail lights are drawn from the represented point's projected conditions.
-- Mouse wheel, horizontal swipe or arrow keys preview ahead or behind without changing the playback position; **Return to playback position** goes back. Camera distances: Close / Near / Far / Wide. **Play/Pause** advances the playback.
-- Both views share one selected time with the timeline. Optional GPS follow: see below.
-
-## 3D terrain view
-
-A third map view, **3D terrain**, drapes the planned route (colored by the projected condition at each point's arrival time) over real elevation in [MapLibre GL JS](https://maplibre.org/) 4.7.1. The camera sits behind and above the *simulated* playback position, looking along the route heading, and follows the same selected point as the timeline and the 3D chase preview; Play, "Return to playback position" and Close/Near/Far/Wide work like the chase preview, and you can drag, rotate and zoom to look around. It is simulated playback of the planned route, not GPS.
-
-- Elevation: Terrain: [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) (Mapzen; SRTM, USGS 3DEP and others), terrarium encoding, 1.4× vertical exaggeration. Basemap: © OpenStreetMap contributors.
-- The hillshade light direction follows the represented point's sun azimuth. This is visual shading only; it is **not** used for the glare model.
-- Needs WebGL and online map + elevation tiles (also in the manual demo scenarios, whose weather stays hand-set). MapLibre is loaded on demand only when this view is opened. If WebGL is unavailable or the map cannot load, the app shows a short notice and switches to the lightweight 3D chase preview. `?view=terrain` opens this view directly.
-
-## Terrain check (approximate, on demand)
-Each sun-glare card has a "Check terrain (approximate)" button. It casts a line-of-sight ray toward the
-low sun from up to 6 points of that stretch (≤ 60 rays per plan) over bare-earth elevation (AWS Terrain
-Tiles, ~30 m) and says whether hills likely hide the sun, the horizon is open, or the check is
-unavailable. After a check, the card adds "Terrain-adjusted strong glare: X of Y min", the timeline's
-Sun glare row hatches stretches where terrain likely hides the sun (with a legend note), and the glare
-KPI subtext adds "(terrain check: …)". This terrain-adjusted glare is a SEPARATE number: geometric and
-cloud-adjusted glare, KPI values, advice severity, exposure score and optimizer are unchanged. Points
-between two checked points take their verdict only if both agree; anything else stays "not checked".
-"Check terrain automatically after each plan" (off by default, remembered in this browser only while
-ticked) runs it after every plan. Buildings, trees and road cuts are not modeled. The elevation tiles
-are an online dependency even in synthetic demo mode. Details: [docs/OCCLUSION.md](docs/OCCLUSION.md).
-
-## Optional: follow my location
-
-Added in v1.1 (not in the contest build). Click **Use my location (optional)** to start; nothing happens before that click.
-
-- Uses the browser Geolocation API (HTTPS only) with explicit permission. Denied / unavailable / timed-out locations show a message, and the planned-route playback keeps working.
-- Each fix is matched to a 1 km sample of the planned route (`snapFix` in `src/lib/geo.js`). The status line shows the fix time, the reported accuracy (±) and the distance from the route line. Fixes coarser than ±1.5 km are not snapped; fixes more than 2 km from the route report "off this planned route" and leave the position unchanged.
-- **Hysteresis:** forward progress is accepted at once and, near overlapping route legs, a match just ahead of the current position is preferred. A fix that matches *behind* the current position is held ("holding position") until 3 consecutive fixes agree, so GPS jitter never moves the position backwards. When the matched position keeps decreasing, the label gently adds "You seem to be moving against the planned direction?" (label only). After an off-route excursion the first fix back on the route snaps freely.
-- **2D accuracy circle:** the 2D map draws a circle around the latest fix with radius = the reported accuracy in meters. Only the latest fix is drawn; **Stop** removes it.
-- Following works the same in all views: the position drives the shared selection, so the 2D map, 3D chase preview and 3D terrain view all move together, and the 3D chase and 3D terrain views show the same "Following your location (GPS)" label.
-- Scrubbing, clicking the map/timeline/advice or playing the 3D preview **pauses** following, so you can explore the plan; **Return to my location** resumes it. **Stop** ends the watch.
-- The weather and glare shown are still the **planned forecast** for this trip's timeline, not live conditions at your position; the clock is not re-timed to your actual progress. **The heading between consecutive GPS fixes is not used for glare** — glare uses the planned route heading at each sample.
-- Coordinates stay in memory in this tab: they are never stored, logged or sent anywhere (no API request carries them). Between fixes only route sample indices and counters are kept.
-- Tested with Chrome's emulated geolocation (near-route, 4-step Amherst→Chicago drive, accuracy circle, off-route and back, jitter, reversal, imprecise, denied, pause/return, 2D and 3D chase; the terrain-view label was checked manually in real Chrome under Xvfb). **Not yet verified on a real device's GPS.**
-
-## Data you see and where it comes from
-
-| What you see | Kind | Source |
+| Mode | What runs | Network |
 |---|---|---|
-| Temperature, precipitation, snowfall, precip. probability, weather code, cloud cover, visibility, wind speed/direction/gusts | **Model forecast** — not observations | Open-Meteo hourly forecast API (`timeformat=unixtime`) |
-| Drive time, arrival time at each point, route line, road names | **Routed estimate** — free-flow, no live traffic | Valhalla (FOSSGIS public server); OSRM demo server as fallback. Never a straight-line substitute |
-| Sun altitude/azimuth, glare score, rear sun, twilight/night, crosswind/headwind components | **Computed geometry** in the browser | SunCalc + `src/lib/*.js` |
-| Place names and time zones in search | Geocoding result | Open-Meteo Geocoding API |
-| "near Toledo, OH" labels | Bundled place list | `src/data/us_places.json` (GeoNames) |
-| Anything opened via `?snapshot=` or "Open a recorded snapshot" | **Recorded snapshot** of route + forecast, labeled "Recorded snapshot" with capture time | `public/fixtures/*.json`, captured 2026-10-24 ~4:12 PM EDT for departures on 2026-10-25 |
+| **Real-data planning** | A live Valhalla route (OSRM fallback) and an Open-Meteo forecast are retrieved when you plan. Each point uses the forecast for its projected arrival time, not current conditions. | Open-Meteo, Valhalla/OSRM, map tiles |
+| **Recorded snapshot** | Route and forecast captured on 2026-10-24 for three trips, labeled with the capture time. Useful when the public services are slow or down. | Map tiles only |
+| **Manual demo scenario** | Hand-set synthetic weather and delays on a recorded real route, labeled "Manual demo · synthetic data". Each scenario shows one feature reproducibly. | Map tiles only |
 
-Forecast lookup rules (`src/lib/forecast.js`): instantaneous variables (temperature, cloud, visibility, wind speed) are interpolated between hours; precipitation, snowfall, probability and gusts come from the hour bin ending at or after the arrival time; wind direction and weather code use the nearest hour. Outside the returned forecast window the value is `null` and shown as "no forecast", never filled in. The planner accepts departures up to about 13 days ahead (Open-Meteo serves 16 days including today; GlarePilot keeps a margin so the whole trip, plus the optimizer's ±3 h, stays inside the window).
+In every mode, the 3D terrain view also loads elevation and building tiles, and the terrain check loads elevation tiles.
 
-## How the glare model works
-
-Constants from `src/lib/sun.js`:
-
-- The sun counts as visible when its geometric altitude is above **−0.833°** (upper limb on the horizon).
-- Forward glare needs altitude **≤ 25°** (higher sun is usually blocked by the roof/visor) and an angle to the heading of **≤ 30°**.
-- `score = lowness × centering`, with `lowness = 1 − max(0, alt)/25` and `centering = 1 − offset/30` (minimum 0.01 inside the cone).
-- Severity: **Severe ≥ 0.55**, **Strong ≥ 0.3**, **Mild > 0**, otherwise None.
-- Expected glare after the forecast: cloud cover **≥ 85 %**, precipitation ≥ 0.2 mm or visibility < 2 km lowers severity **2 levels**; cloud **≥ 60 %** lowers it **1 level**. Geometric severity is kept and shown alongside.
-- Rear sun: visible, altitude ≤ 15° and ≥ 150° from the heading (signals and brake lights look unlit; oncoming drivers face glare).
-- Light phase: day > 6°, low sun > −0.833°, twilight > −6°, otherwise night.
-
-```
-            sun (alt ≤ 25°)
-              \   |   /
-         -30°  \  |  /  +30°        score = lowness × centering
-                \ | /               lowness   = 1 − alt/25
-                 \|/                centering = 1 − |sun az − heading|/30
-   ───────────── [car] ──► heading
-                  |
-       rear cone: ≥150° from heading, alt ≤ 15°
-```
-
-SunCalc azimuth (radians from south, positive west) is converted to compass degrees (0 = north, clockwise); headings use the same convention.
-
-## Driving implications and the rules engine
-
-`src/lib/weather.js` turns each forecast value into flags. Crosswind uses the gust (or wind speed) and the meteorological FROM direction: `crosswind = gust × |sin(from − heading)|`. The advisory crosswind limit is **40 mph** for a car/SUV and **25 mph** for a van/truck/RV or motorcycle. Thresholds are planning heuristics, not official criteria.
-
-`src/lib/advice.js` is a **deterministic, explainable rules engine — no LLM or generative AI at runtime**. The same inputs always give the same recommendations. Each one carries the triggering data (sun altitude range, closest angle to heading, cloud cover, snowfall, gusts…) and concrete actions. Rules cover glare windows, rear sun, snow/ice, rain/heavy rain, low visibility, thunderstorms, crosswinds, night driving and dusk arrival, freezing temperatures, fatigue, missing forecast coverage and a departure suggestion.
-
-## Departure optimizer
-
-`src/lib/optimizer.js` re-evaluates the same route (no extra network calls) for departures shifted −180 … +180 min in 30-minute steps. Each candidate gets an exposure score in weighted minutes:
-
-| Condition (per minute) | Weight |
+| Link | Opens |
 |---|---|
-| Severe / strong / mild expected glare | 3 / 2 / 0.5 |
-| Snow | 4 |
-| Ice | 5 |
-| Heavy rain / rain | 2 / 0.75 |
-| Thunderstorm | 3 |
-| Low visibility | 2 |
-| Crosswind above limit | 2 |
-| Night | 0.4 |
+| [`?preset=chicago-sunset`](https://umass308xiaofanliu.github.io/glarepilot/?preset=chicago-sunset) | Live plan: Amherst, MA → Chicago, IL, tomorrow at 8:00 AM Eastern |
+| [`?snapshot=chicago-sunset`](https://umass308xiaofanliu.github.io/glarepilot/?snapshot=chicago-sunset) | The same trip from a recorded snapshot |
+| [`?demo=sunset-glare&view=3d`](https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d) | Westbound low sun near Lake Erie, in the 3D chase preview |
+| [`?demo=congestion-shift`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift) | An assumed 75-minute delay pushes the New York arrival into rain and darkness |
+| [`?demo=storm-crosswind&view=terrain`](https://umass308xiaofanliu.github.io/glarepilot/?demo=storm-crosswind&view=terrain) | Heavy rain and crosswind gusts in the 3D terrain view (requires WebGL) |
+| [`?demo=congestion-shift&view=terrain`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift&view=terrain) | Terrain and 3D buildings: move the timeline to New York and choose the Close camera |
 
-Candidates in the past, or with more than 5 % of the drive outside the forecast window, are marked unavailable. Among near-ties (within 3 points or 5 % of the best) the smallest shift wins, and a change is suggested only if it saves at least 10 points or 20 %. This is a transparent heuristic for comparing departures, **not a crash-risk model**.
+Other snapshots: `boston-sunrise`, `nyc-evening`. Other demo scenario: `snow-fog-night`.
 
-## Architecture
+![Amherst to Chicago: trip summary, route colored by sun glare, and hour-by-hour timeline](docs/screenshots/desktop-chicago-sunset.png)
 
+| 3D terrain view, synthetic storm | 3D buildings at the New York end, Close camera |
+|---|---|
+| <img src="docs/qa/terrainfx-storm-desktop.png" width="430" alt="3D terrain view with rain and a 53 mph wind gauge over real elevation in Connecticut"> | <img src="docs/qa/terrain-buildings-nyc-close.png" width="430" alt="3D terrain view with extruded buildings in Manhattan"> |
+
+## Features
+
+- **Route-time evaluation.** You enter the departure as local time at the origin. The route is
+  resampled every 1 km with a smoothed heading, and each sample gets its arrival time. Arrival
+  times include optional breaks and an optional assumed delay. Up to 40 checkpoints share one
+  Open-Meteo request, and each sample takes the forecast value valid at its arrival time.
+- **Sun glare.** SunCalc gives the sun's position at each sample and time, and RouteCast compares
+  it with the road heading. The model scores low sun ahead, then lowers the expected severity when
+  cloud, precipitation or poor visibility is forecast. Low sun behind the car, twilight and night
+  are reported separately.
+- **Driving conditions.** Rain, heavy rain, snow, ice, fog and low visibility, and thunderstorms
+  come from the forecast. Crosswind and headwind are computed from the forecast gusts, with limits
+  that depend on the vehicle type. Cold, darkness and fatigue are also flagged.
+- **Briefing.** A prioritized list of recommendations. Each one states when and where it applies,
+  the values that triggered it, and what to do.
+- **Departure comparison.** The same route is re-evaluated for departures from 3 hours earlier to
+  3 hours later, in 30-minute steps. A transparent exposure score marks the best option, and
+  RouteCast suggests a change only when it is meaningfully better.
+- **Views.**
+  - The *2D map* (Leaflet) has sun-glare, weather and daylight layers and animated condition icons.
+  - The *3D chase preview* (Canvas) shows the road from behind and above the car.
+  - The *3D terrain view* (MapLibre GL, WebGL) shows terrain and buildings, with weather, light and
+    wind effects drawn from the selected point.
+  - All three views share the timeline, playback, look-ahead and camera controls. The 3D views
+    simulate playback of the planned route; they are not GPS navigation.
+- **Terrain check** (v1.1). This optional check tests whether hills are likely to hide the low sun
+  along a glare window. It uses bare-earth elevation at about 30 m and reports a separate
+  terrain-adjusted glare figure. The main glare score is not changed.
+  See [docs/OCCLUSION.md](docs/OCCLUSION.md).
+- **Location follow** (v1.1). Optionally, your browser location moves the playback position along
+  the planned route. It includes jitter protection and an accuracy circle. Coordinates stay in the
+  tab and are never stored or sent.
+- **Units, accessibility, mobile.** °F/mi and °C/km, keyboard controls, reduced-motion support and
+  a responsive layout.
+
+## Traffic and timing
+
+The public Valhalla and OSRM servers return free-flow travel times, and RouteCast does not predict
+traffic. Instead you can state a delay of 15 minutes to 2 hours, spread over the whole trip or one
+stretch of it. Every later point is then re-timed against the forecast and the sun, and a summary
+card shows what the delay changes.
+
+After a real-data plan, two keyless public feeds can be checked on demand where they apply:
+
+- NYC DOT real-time speeds, only for departures within the next hour;
+- INDOT work-zone reports.
+
+Both appear as overlays and never change the timing automatically. This is regional coverage, not
+nationwide or predictive traffic.
+
+Routing through TomTom, HERE or Mapbox with your own key is experimental. It appears only with
+`?experimental=traffic` and has been tested against mocked responses only.
+See [docs/TRAFFIC.md](docs/TRAFFIC.md).
+
+## How it works
+
+```text
+origin, destination, local departure time
+  → Open-Meteo geocoding (place and IANA time zone)
+  → Valhalla route with per-segment travel times (OSRM fallback; never a straight line)
+  → 1 km samples: position, heading, drive time (+ breaks, + assumed delay)
+  → ≤ 40 checkpoints → one multi-location Open-Meteo hourly request
+  → per sample at its arrival time: forecast value, sun position, glare, wind components
+  → windows and totals → rules engine and departure comparison (−3 h … +3 h)
+  → KPIs, 2D map, 3D views, timeline, checkpoint table
 ```
-place search ─► Open-Meteo Geocoding (name, state, IANA time zone)
-route ────────► Valhalla (FOSSGIS) ──fallback──► OSRM demo   (no straight-line fallback)
-                coords[], cumDist[], cumTime[] (routed seconds), road names
-resample ─────► sample every 1 km: distance, lat/lon, routed driveSec, heading (±300 m)
-checkpoints ──► ≤ 40 points (~30 min / 45 km apart) ─► ONE Open-Meteo multi-location request
-evaluate(dep) ► per sample: t = dep + driveSec (+ breaks)
-                SunCalc → glare / rear sun / phase;  forecast valid at t → hazards, wind
-aggregate ────► totals + windows (glare, rear, wet, snow, wind, low vis, night, missing)
-optimizer ────► re-evaluate dep −3 h … +3 h → exposure score
-rules engine ─► prioritized recommendations: when / where / why / actions
-UI ───────────► KPIs · Leaflet map + layers · SVG timeline + scrubber · compass · table
-```
 
-The diagram shows the contest-build core; the branch module map, modes, per-mode network inventory and storage keys are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The core logic in `src/lib/` is pure JavaScript with no DOM access; the UI lives in `src/main.js`
+and `src/ui/`. All times are handled internally as UTC and shown in each point's local time zone,
+so the Chicago trip crosses from EDT to CDT.
 
-Static single-page app: Vite 5 + vanilla ES modules, no backend, no keys required. Pure logic in `src/lib/*.js` (no DOM), UI in `src/main.js` and `src/ui/*.js`. All internal times are UTC epoch milliseconds; each point is displayed in its own local zone (the Chicago trip crosses from EDT to CDT).
+Forecast values follow strict rules:
+
+- Instantaneous values (temperature, cloud, visibility, wind speed) are interpolated between hours.
+- Precipitation, probability and gusts come from the hour that contains the arrival.
+- Times outside the forecast window show as "no forecast" and are never filled in.
+
+Departures can be planned up to about 13 days ahead.
+
+Main constants in the glare model ([`src/lib/sun.js`](src/lib/sun.js)):
+
+- **Forward glare.** The sun must be above the horizon (altitude above −0.833°), no more than 25°
+  high and within 30° of the heading. The score is `lowness × centering`. Severity is Severe at
+  0.55 or above, Strong at 0.3 or above, and Mild above 0.
+- **Weather adjustment.** Cloud cover of 85 % or more, precipitation of at least 0.2 mm, or
+  visibility under 2 km lowers the expected severity by two levels. Cloud cover of 60 % or more
+  lowers it by one level. The geometric value is shown alongside.
+- **Crosswind.** Computed as `gust × |sin(wind direction − heading)|`. The advisory limit is
+  40 mph for cars and SUVs, and 25 mph for vans, trucks, RVs and motorcycles.
+
+Departure weights and thresholds are in [`src/lib/optimizer.js`](src/lib/optimizer.js) and
+[`src/lib/weather.js`](src/lib/weather.js). They are planning heuristics, not validated safety
+criteria. More detail, including the module map, the network inventory per mode and the storage
+keys, is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quick start
 
@@ -259,76 +164,91 @@ npm run build      # static build in dist/
 npm run preview    # serve dist/ on http://127.0.0.1:4173
 ```
 
-## Tests
-
-```bash
-npm test             # 122 node:test unit, integration and fast-check property tests
-npm run test:e2e     # 37 puppeteer-core browser scenarios (headless Chrome, replayed responses)
-npm run test:visual  # 3D terrain WebGL screenshots: headed Chrome + SwiftShader under Xvfb
-```
-
-Counts measured for the v1.1 release (122/122 unit and 37/37 browser tests pass; visual suite 14/14); the contest build had fewer. Commands, requirements, known flakes and what cannot be verified here: [docs/TESTING.md](docs/TESTING.md). The file list below describes the original suites; newer files cover GPS matching, terrain check/glare, terrain FX, overlays, traffic adapters and view switching.
-
-- `tests/unit/math.test.mjs`: time-zone conversion across DST (including the spring-forward gap), compass/bearing helpers, polyline decoding, routed-time resampling, SunCalc azimuth conversion, glare geometry, cloud adjustment, wind components, hazard flags. Property tests (fast-check): wall time → UTC → wall time round trip in 5 US zones, `angleDiff` invariants, glare monotonicity, crosswind ≤ wind speed.
-- `tests/unit/pipeline.test.mjs`: forecast hour semantics and `null` outside the window, break timing, window grouping, geocoding, Valhalla → OSRM fallback with no straight-line route, horizon clamping, one multi-point forecast request, snapshot scenarios (Eastern → Central crossing, sunrise glare), optimizer determinism, synthetic snow/wind/night advice.
-- `tests/e2e/app.test.mjs`: normal flow, sunrise glare preset, night trip, invalid input, service failures (no route, forecast down, Valhalla down → OSRM), route change and controls, mobile layout, accessibility basics.
-- `tests/unit/scenarios.test.mjs`: linear delay accumulation, delay propagation to every downstream point (time, forecast hour, sun position, arrival), glare timing shifting with delay, trip-clock optimizer in snapshot/scenario mode, the four scenarios triggering their intended conditions, congestion-shift arrival in rain and darkness.
-- `tests/e2e/modes.test.mjs`: manual demo scenarios with synthetic labels and zero API calls, shared 2D/3D state with preview ahead and return to playback position, real-mode delay re-timing without refetch, reduced motion and the animation toggle.
-
-E2E runs headless system Chrome (default `/opt/google/chrome/chrome`; override with `CHROME_PATH=/path/to/chrome`) with an isolated temporary profile, a loopback-only Vite preview server, and network requests replayed from the recorded snapshots.
-
-## Recording snapshots
+To refresh the recorded snapshots (this calls the live services and writes `public/fixtures/*.json`):
 
 ```bash
 npm run record:snapshots            # departures tomorrow
 npm run record:snapshots 2026-10-25 # departures on a given date
 ```
 
-Calls the live services for the three presets and writes `public/fixtures/*.json` with `capturedAt`.
+The build uses a relative base path, so `dist/` runs on any static host.
+`bash scripts/deploy-gh-pages.sh` publishes it to the `gh-pages` branch, which serves the live
+demo.
 
-## Deploy
+## Verification
 
 ```bash
-bash scripts/deploy-gh-pages.sh
+npm test             # unit, integration and fast-check property tests
+npm run test:e2e     # browser scenarios in headless Chrome
+npm run test:visual  # 3D view screenshots: headed Chrome + SwiftShader under Xvfb
 ```
 
-Builds and pushes `dist/` to the `gh-pages` branch (requires push access). The live demo above is served by GitHub Pages. The build uses a relative base, so `dist/` also works on Cloudflare Pages or any static host. **Cloudflare Pages is not deployed** (no Cloudflare login was available); after `npx wrangler login` (or setting `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`), `CF_BRANCH=<preview-branch> npm run deploy:cloudflare` (deferred; requires Cloudflare credentials and refuses to run without an explicit `CF_BRANCH`) publishes `dist/` to that Pages branch.
+Results for v1.1.0:
 
-## Built with Kiro
+- **Unit and property tests:** 122/122 passed.
+- **Browser scenarios:** 37/37 passed.
+- **3D visual checks:** 14/14 passed.
 
-Built in Kiro CLI with steering docs (`.kiro/steering/`), a spec (`.kiro/specs/route-time-weather-glare/`: requirements, design, tasks), fast-check property tests and Kiro subagents for independent review and parallel stages. Full write-up, including what was not used: [docs/SUBMISSION.md](docs/SUBMISSION.md#how-kiro-was-used).
+The browser tests run against a local production build, with routing, forecast and geocoding
+responses replayed from recorded fixtures. They cover normal planning, glare and night trips,
+invalid input, service failures and fallbacks, demo modes, delays, overlays, emulated
+geolocation, the terrain check and view switching. After deployment, the live site was checked in
+2D, the 3D chase preview, the 3D terrain view (desktop and mobile) and 3D buildings, with a recorded
+snapshot and a live plan; no page errors occurred.
+
+Requirements and known issues are in [docs/TESTING.md](docs/TESTING.md).
 
 ## Limitations
 
-- Routed times are free-flow estimates: no live or predicted traffic, construction or stops beyond the optional break plan and your own delay assumption.
-- The 3D chase and 3D terrain views are simulated playback of the plan, not navigation. Optional GPS follow (branch only) is tested with emulated geolocation only.
-- Weather is model forecast, available about 16 days ahead and less reliable the further out you go.
-- The glare score ignores terrain, buildings, trees, road curvature between 1 km samples and windshield/visor geometry. The terrain check is approximate (bare earth, ~30 m) and reported separately.
-- Glare, wind and optimizer thresholds and weights are heuristics, not validated safety criteria.
-- Public free servers (Valhalla FOSSGIS, OSRM demo, Open-Meteo) can be slow or rate-limited; use a recorded snapshot if they fail. Map tiles follow the OpenStreetMap tile usage policy and are not meant for heavy traffic.
-- US only. Web app only: no native app, no PWA/installable app.
-- **Not a safety system.** GlarePilot is a planning aid; road signs, official weather alerts and your own judgment take priority.
+- Travel times are free-flow estimates. There is no traffic prediction unless you add a delay
+  assumption or use the experimental provider routing.
+- Weather values are model forecasts and become less reliable further ahead.
+- The glare score uses road heading and sun geometry only. It does not model buildings, trees,
+  curvature between 1 km samples or visor geometry. The terrain check is approximate and reported
+  separately.
+- The 3D views have been rendered only with SwiftShader, not on real GPUs or phones. Location
+  follow has been tested only with emulated geolocation, not on a real device.
+- The free public routing and forecast servers can be slow or rate-limited. In that case, use a
+  recorded snapshot.
+- Coverage is US only, and there is no native app.
 
-Full, branch-current list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+RouteCast is a planning aid, not a safety system. Road signs, official weather alerts and your own
+judgment take priority. Full list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
-## Attribution and licenses
+## Repository layout
 
-Forecasts and geocoding: Open-Meteo (CC BY 4.0). Routing: Valhalla on FOSSGIS servers, OSRM demo server. Map data and tiles © OpenStreetMap contributors (ODbL). Place labels: GeoNames (CC BY 4.0). Bundled libraries: Leaflet (BSD-2-Clause), SunCalc (BSD-2-Clause). Branch-only: MapLibre GL JS 4.7.1 (BSD-3-Clause); elevation from AWS Terrain Tiles; 3D buildings from OpenFreeMap (© OpenMapTiles, data © OpenStreetMap); NYC DOT speeds from NYC Open Data; INDOT work zones via WZDx. Details and full license texts: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- `src/lib/`: routing, forecast, sun and glare, trip evaluation, rules engine, optimizer, terrain
+  check, traffic adapters.
+- `src/ui/`: 2D map, 3D chase preview, 3D terrain view, timeline, compass, condition icons.
+- `public/fixtures/`: recorded route and forecast snapshots.
+- `tests/unit/`, `tests/e2e/`: Node test runner suites, plus the visual script.
+- `scripts/`: snapshot recording, visual tests, demo recording, deployment.
+- `docs/`: architecture, limitations, terrain occlusion, traffic, testing, media, QA screenshots.
+- `.kiro/`: the steering documents and the spec (requirements, design, tasks) used to build the
+  project.
 
-**Project license:** TODO (human) — the author has not chosen a license yet. Until one is added, no open-source license is granted for this repository's own code.
+## Documentation
 
-## Team
+- [CHANGELOG.md](CHANGELOG.md): changes in v1.1.0 and in the contest build.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): modules, data flow, network use and storage.
+- [docs/LIMITATIONS.md](docs/LIMITATIONS.md): the full list of limitations.
+- [docs/OCCLUSION.md](docs/OCCLUSION.md): the terrain check and how it was validated.
+- [docs/TRAFFIC.md](docs/TRAFFIC.md): the traffic sources that were assessed and the ones used.
+- [docs/TESTING.md](docs/TESTING.md): test suites, requirements and known issues.
+- [docs/SUBMISSION.md](docs/SUBMISSION.md): the Hackachusetts 2026 submission and how Kiro was
+  used.
+- [docs/media/](docs/media/): demo video details, transcript and captions.
 
-TODO (human) — add team member names as registered on SundAI.
+## Data and attribution
 
-## Roadmap
+- **Weather forecasts and geocoding:** [Open-Meteo](https://open-meteo.com/) (CC BY 4.0).
+- **Routing:** Valhalla on the FOSSGIS servers, with the OSRM demo server as fallback.
+- **Map data and tiles:** © OpenStreetMap contributors (ODbL).
+- **3D buildings:** OpenFreeMap (© OpenMapTiles).
+- **Elevation:** AWS Terrain Tiles (Mapzen; SRTM, USGS 3DEP and others).
+- **Place labels:** GeoNames (CC BY 4.0).
+- **Traffic overlays:** NYC Open Data (NYC DOT speeds) and INDOT WZDx work zones.
+- **Libraries:** Leaflet (BSD-2-Clause), SunCalc (BSD-2-Clause) and MapLibre GL JS 4.7.1
+  (BSD-3-Clause).
 
-Done in v1.1: 3D terrain view with buildings and weather effects, approximate terrain check with separate terrain-adjusted glare, optional GPS follow, keyless overlays, experimental provider traffic — see [What's new in v1.1](#whats-new-in-v11-post-hackathon-live).
-
-Still open:
-
-- Verification on real GPUs, mobile browsers and a real device's GPS (only SwiftShader and emulated geolocation so far).
-- Real provider traffic responses (needs the user's own TomTom/HERE/Mapbox keys); live/predictive traffic remains off by default.
-- Terrain/building occlusion inside the main glare score (today only the separate, approximate terrain check).
-- Deploying the branch (GitHub Pages update or Cloudflare Pages, which needs a human login) after review.
-- More scenario authoring and broader test coverage. No LLM is planned for the rules engine.
+License texts and details: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

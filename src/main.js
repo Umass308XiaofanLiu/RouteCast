@@ -118,7 +118,7 @@ async function readForm() {
   }
   const dep = parseLocalInput($('departure').value, origin.timezone);
   if (dep == null) throw Object.assign(new Error('Enter a departure date and time.'), { field: 'departure' });
-  if (dep < Date.now() - 15 * 60e3) throw Object.assign(new Error('That departure time is in the past. GlarePilot plans upcoming drives.'), { field: 'departure' });
+  if (dep < Date.now() - 15 * 60e3) throw Object.assign(new Error('That departure time is in the past. RouteCast plans upcoming drives.'), { field: 'departure' });
   if (dep > forecastHorizonEnd() - 36 * 3600e3) {
     throw Object.assign(new Error('Forecasts only reach about two weeks ahead. Pick a departure within the next 13 days.'), { field: 'departure' });
   }
@@ -300,7 +300,7 @@ function provHtml() {
       <li><strong>Weather</strong>: ${m.source.kind === 'synthetic' ? 'hand-set synthetic values (not a forecast)' : 'Open-Meteo model forecast for the hour each point is reached (not an observation, not current conditions)'}.</li>
       <li><strong>Sun position and glare</strong>: computed with SunCalc for each point's future arrival time and heading.</li>
       <li><strong>Arrival times</strong>: ${tr?.retrievedAt ? `estimated from ${esc(tr.provider)} traffic-aware routing (${esc(MODE_LABEL[tr.mode])}, ${esc(tr.timing)})${dly ? ' plus your separate delay assumption' : ''}` : `estimated from ${esc(m.route.engine)} free-flow routing${dly ? ' plus your delay assumption' : ''}; no live or predicted traffic is used`}.</li>
-      <li><strong>Observed / live data</strong>: none by default. GlarePilot shows no current conditions and does not track your location unless you opt in: the keyless overlays (current NYC DOT speeds, reported INDOT work zones) and optional GPS follow are labelled and never change the forecast or timing automatically.</li></ul></details>`;
+      <li><strong>Observed / live data</strong>: none by default. RouteCast shows no current conditions and does not track your location unless you opt in: the keyless overlays (current NYC DOT speeds, reported INDOT work zones) and optional GPS follow are labelled and never change the forecast or timing automatically.</li></ul></details>`;
   if (m.source.kind === 'synthetic') {
     return { cls: 'synthetic', html: `<strong>Manual demo scenario — synthetic data.</strong> “${esc(m.source.title)}”: ${esc(m.source.story)} Weather${state.ev.delay?.minutes ? ' and the traffic delay are' : ' is'} hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real ${esc(m.route.engine)} route captured ${esc(ny(m.source.routeCapturedAt))}. ${timing}${what}` };
   }

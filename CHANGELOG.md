@@ -1,7 +1,14 @@
 # Changelog
 
 Dates are US Eastern. Hashes point to representative commits. The contest submission is preserved as
-tag/release `v1.0-hackachusetts`; GitHub Pages serves v1.1.0 since 2026-10-25.
+tag/release `v1.0-hackachusetts`; GitHub Pages serves v1.1.x since 2026-10-25.
+
+## v1.1.1 — display name RouteCast (2026-10-25)
+
+- The app is now called **RouteCast — Weather-Aware Trip Planning** (formerly GlarePilot): page
+  title, header, meta description, messages, README and current docs. Text-only; no behavior changes.
+- Unchanged on purpose: repository slug and live URL (`/glarepilot/`), `glarepilot.*` localStorage
+  keys, and the historical `v1.0-hackachusetts` release, video, transcript and screenshots.
 
 ## v1.1.0 — post-hackathon release (developed 2026-10-24 evening, published 2026-10-25)
 

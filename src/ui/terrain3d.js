@@ -476,6 +476,7 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
       // keep the tag and the map's accessible name consistent with the GPS label
       hud.tag.textContent = text ? TERRAIN_TAG_GPS : TERRAIN_TAG_SIM;
       hud.map.setAttribute('aria-label', `${MAP_LABEL} ${text ? 'Following your GPS position snapped to the planned route; conditions are still the planned forecast.' : 'Simulated playback, not GPS.'}`);
+      carEl?.setAttribute('aria-label', text ? 'GPS position snapped to the planned route' : 'Simulated playback position');
     },
     // --- end GPS follow label hook ---
     /** Restore a shared preview (absolute sample index, or null) without changing playback. */

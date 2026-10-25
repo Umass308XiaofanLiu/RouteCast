@@ -285,7 +285,7 @@ function renderAll({ fit = false } = {}) {
   renderOptimizer();
   renderTable();
   $('scrub').max = String(ev.rows.length - 1);
-  $('timeline-note').textContent = `Times shown in local time along the route · ${model.route.engine} drive times, no live traffic`;
+  $('timeline-note').textContent = `Times shown in local time along the route · ${model.route.engine} drive times${model.source.traffic?.retrievedAt ? ` with ${model.source.traffic.provider} ${model.source.traffic.mode} traffic (experimental)` : ', no live traffic'}`;
   select(state.sel);
 }
 
@@ -300,7 +300,7 @@ function provHtml() {
       <li><strong>Weather</strong>: ${m.source.kind === 'synthetic' ? 'hand-set synthetic values (not a forecast)' : 'Open-Meteo model forecast for the hour each point is reached (not an observation, not current conditions)'}.</li>
       <li><strong>Sun position and glare</strong>: computed with SunCalc for each point's future arrival time and heading.</li>
       <li><strong>Arrival times</strong>: ${tr?.retrievedAt ? `estimated from ${esc(tr.provider)} traffic-aware routing (${esc(MODE_LABEL[tr.mode])}, ${esc(tr.timing)})${dly ? ' plus your separate delay assumption' : ''}` : `estimated from ${esc(m.route.engine)} free-flow routing${dly ? ' plus your delay assumption' : ''}; no live or predicted traffic is used`}.</li>
-      <li><strong>Observed / live data</strong>: none. GlarePilot does not show current conditions and does not track your location.</li></ul></details>`;
+      <li><strong>Observed / live data</strong>: none by default. GlarePilot shows no current conditions and does not track your location unless you opt in: the keyless overlays (current NYC DOT speeds, reported INDOT work zones) and optional GPS follow are labelled and never change the forecast or timing automatically.</li></ul></details>`;
   if (m.source.kind === 'synthetic') {
     return { cls: 'synthetic', html: `<strong>Manual demo scenario — synthetic data.</strong> “${esc(m.source.title)}”: ${esc(m.source.story)} Weather${state.ev.delay?.minutes ? ' and the traffic delay are' : ' is'} hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real ${esc(m.route.engine)} route captured ${esc(ny(m.source.routeCapturedAt))}. ${timing}${what}` };
   }

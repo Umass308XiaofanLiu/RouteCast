@@ -1,4 +1,4 @@
-> **Superseded for post-hackathon work** — current status and evidence: `CHANGELOG.md`, `docs/TESTING.md`, and the task-folder tracker `KIRO_REMAINING_GOALS.md`. The section below records the contest-night state.
+> **Superseded for post-hackathon work** — current status and evidence: `CHANGELOG.md`, `docs/TESTING.md`, and the maintainer's progress tracker kept outside this repository. The section below records the contest-night state.
 
 # GlarePilot — project status (2026-10-24 ~7:15 PM ET)
 

@@ -84,8 +84,8 @@ browsers (Safari/Firefox), real phones, browsers without OffscreenCanvas (DOM-ca
 - Why on demand, not automatic: DEM tiles are a separate online dependency (in real, snapshot AND
   synthetic modes — synthetic mode still makes no weather/route/traffic calls, but the terrain check
   does fetch elevation tiles). Existing e2e tests assert that a planned trip makes no unknown-host
-  requests, and a user click keeps that network use explicit. Switching to automatic is a one-line
-  call to `runTerrainCheck()` after `evaluate()` once those test expectations are revisited.
+  requests, and a user click keeps that network use explicit. An opt-in automatic mode now exists (next
+  section); the default stays on demand.
 - Tests: `tests/unit/terraincheck.test.mjs` (synthetic ridge blocks westbound sunset → terrain-may-hide,
   ridge behind → open, flat → open, null/throwing sampler → unknown, abort, ≤ 4 concurrent rays,
   ev untouched, sampler decode/de-dup/LRU/failure). `tests/e2e/terraincheck.test.mjs`: sunset demo,
@@ -93,7 +93,39 @@ browsers (Safari/Firefox), real phones, browsers without OffscreenCanvas (DOM-ca
   no page errors. A one-off local check (not committed) served a generated flat terrarium PNG for every DEM URL
   in the sunset demo: 55 tile requests, cards showed "open horizon" twice and "inconclusive" once
   (sun within ±0.5° of the horizon), KPIs unchanged, no page errors. Real AWS tile decode in a browser is
-  now verified (section above); still not verified: the "hills" line in the rendered UI (unit-tested only).
+  now verified (section above). The "hills" line in the rendered UI is now e2e-verified with a generated
+  ridge DEM (next section).
+
+## Terrain-adjusted expected glare (2026-10-24)
+- `src/lib/terrainglare.js` `terrainAdjustedGlare(ev, results)` → `{ ev, bySample, windows }`, a third
+  layer beside geometric (`r.glare`) and cloud-adjusted (`r.expected`) glare; it never mutates `ev`.
+  `bySample` is keyed by row index (glare rows of checked windows only): checked `blocked` → expected 0,
+  label "terrain likely hides the sun"; `visible` → unchanged; `unknown` → unchanged, "not checked".
+  Unchecked rows take the verdict of their nearest checked neighbours only when one exists on BOTH sides
+  inside the same window and both agree (blocked/visible); otherwise unknown. Windows past the ray budget
+  are `capped` and stay unknown. `windows` (keyed by window start) gives strong (cloud-adjusted ≥ 2)
+  minutes, terrain-adjusted strong minutes, hidden and unknown minutes.
+- UI: card line "Terrain-adjusted strong glare: X of Y min" (+ "(N min not checked, left unchanged)"),
+  shown only if at least one checked point was conclusive; timeline Sun glare row overlays a hatched,
+  muted pattern on blocked stretches (`<title>` + legend note + SVG aria-label); glare KPI subtext gets
+  "(terrain check: hills may hide ~H of S strong min | no hills in the way at checked points |
+  inconclusive | unavailable | no strong glare to adjust)" only after a finished check. KPI values and
+  advice titles/priority are unchanged (e2e asserted).
+- Auto-run: checkbox "Check terrain automatically after each plan" on the first glare card, OFF by
+  default; ticking stores `localStorage['glarepilot.terrainAuto'] = '1'` and runs the check; unticking
+  removes the key. Without it a normal plan makes no DEM request (e2e asserted).
+- Performance: `MAX_TOTAL_RAYS = 60` per evaluation (per-window share `min(6, floor(60 / windows))`, hard
+  cap on the total); the decoded-tile cache (`state.demSampler`) is reused across re-evaluations of the
+  same route object and cleared for a new route; a new evaluation aborts the running check.
+- Tests: `tests/unit/terrainglare.test.mjs` (blocked/visible/unknown rules, frozen ev, interpolation
+  agree/disagree/one-sided/no cross-window, minutes + card/KPI text, 60-ray cap and `capped`, abort,
+  recorded DEM fixtures: Berkshire ridge → 0, Ohio plain → unchanged, cache reuse, missing tiles →
+  unknown). `tests/e2e/terraincheck.test.mjs` serves GENERATED terrarium PNGs: flat (open, "Y of Y",
+  nothing hatched) and a west-rising sawtooth ridge (hills line, "X of Y" with X < Y, hatched timeline,
+  KPI note, auto-run persisted across reload, untick forgets); plus aborted DEM hosts → unavailable.
+- Limits: still bare-earth only; ≤ 6 rays per window means interpolation spans up to several minutes;
+  the generated e2e terrain is artificial (real-terrain behaviour rests on the recorded unit fixtures);
+  not verified on real devices or against live AWS tiles in this branch.
 
 
 ## Three different layers (do not conflate)

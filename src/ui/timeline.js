@@ -16,9 +16,9 @@ const TOP = 22;
 function runs(rows, cat) {
   const out = [];
   let s = 0;
-  let c = cat(rows[0]);
+  let c = cat(rows[0], 0);
   for (let i = 1; i <= rows.length; i += 1) {
-    const ci = i < rows.length ? cat(rows[i]) : null;
+    const ci = i < rows.length ? cat(rows[i], i) : null;
     if (i === rows.length || ci !== c) {
       out.push([s, i - 1, c]);
       s = i;
@@ -57,6 +57,9 @@ export function createTimeline(el, { onPick }) {
     const { ev, model, fmt, sel, range } = state;
     width = Math.max(320, el.clientWidth || 800);
     const rows = ev.rows;
+    // Terrain-adjusted glare (lib/terrainglare.js) — only for the evaluation it was computed for.
+    const tadj = state.terrain && state.terrain.ev === ev ? state.terrain : null;
+    const hidden = tadj ? runs(rows, (r, i) => (tadj.bySample.get(i)?.verdict === 'blocked' ? 1 : 0)).filter((x) => x[2]) : [];
     const edges = rows.map((r, i) => (i === 0 ? r.t : (rows[i - 1].t + r.t) / 2));
     edges.push(rows[rows.length - 1].t);
     const x0 = (i) => xOf(edges[i]);
@@ -64,7 +67,8 @@ export function createTimeline(el, { onPick }) {
     let y = TOP;
     const parts = [];
     const rowsDef = ev.delay?.extraSec ? [...ROWS, { key: 'jam', label: 'Delay (set)', h: 10 }] : ROWS;
-    const totalH = TOP + rowsDef.reduce((a, r) => a + r.h + GAP, 0) + 14;
+    const NOTE_H = hidden.length ? 16 : 0;
+    const totalH = TOP + rowsDef.reduce((a, r) => a + r.h + GAP, 0) + 14 + NOTE_H;
 
     // Highlighted range (from a selected recommendation).
     if (range) parts.push(`<rect x="${x0(range[0])}" y="4" width="${Math.max(2, x1(range[1]) - x0(range[0]))}" height="${totalH - 8}" fill="#ffe8cc" opacity=".55" rx="4"/>`);
@@ -80,6 +84,10 @@ export function createTimeline(el, { onPick }) {
           if (geo === 0) continue;
           const muted = exp < geo;
           parts.push(`<rect x="${x0(a)}" y="${y}" width="${Math.max(1, x1(b) - x0(a))}" height="${row.h}" fill="${C.g[Math.max(exp, 1)]}" opacity="${muted ? 0.4 : 1}"><title>${muted ? 'Geometric glare, likely muted by clouds' : 'Expected glare'}</title></rect>`);
+        }
+        // Terrain check: stretches where hills likely hide the sun are muted + hatched (glare data unchanged).
+        for (const [a, b] of hidden) {
+          parts.push(`<rect class="tl-terrain-hidden" x="${x0(a)}" y="${y}" width="${Math.max(1, x1(b) - x0(a))}" height="${row.h}" fill="url(#terrainhide)"><title>Terrain likely hides the sun here (approximate bare-earth terrain check)</title></rect>`);
         }
       } else if (row.key === 'precip') {
         const maxP = Math.max(2, ...rows.map((r) => r.wx?.precipitation ?? 0));
@@ -155,13 +163,19 @@ export function createTimeline(el, { onPick }) {
       t += 3600e3;
     }
 
+    if (hidden.length) {
+      parts.push(`<rect x="${LABEL_W}" y="${y + 2}" width="12" height="10" fill="url(#terrainhide)" stroke="#adb5bd" stroke-width=".5"/>`);
+      parts.push(`<text class="tl-terrain-note" x="${LABEL_W + 18}" y="${y + 11}">Hatched sun glare: terrain likely hides the sun (approximate terrain check; glare above is unchanged)</text>`);
+    }
+
     // Cursor.
     const cx = xOf(rows[sel].t);
     parts.push(`<line x1="${cx}" x2="${cx}" y1="${TOP - 6}" y2="${y - GAP + 2}" stroke="${C.ink}" stroke-width="2"/>`);
     parts.push(`<circle cx="${cx}" cy="${TOP - 6}" r="4.5" fill="${C.ink}"/>`);
 
-    el.innerHTML = `<svg viewBox="0 0 ${width} ${totalH}" height="${totalH}" role="img" aria-label="Timeline of daylight, sun glare, precipitation, temperature and crosswind along the drive">
-      <defs><pattern id="nodata" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#f1f3f5"/><line x1="0" y1="0" x2="0" y2="6" stroke="#ced4da" stroke-width="2"/></pattern></defs>
+    el.innerHTML = `<svg viewBox="0 0 ${width} ${totalH}" height="${totalH}" role="img" aria-label="Timeline of daylight, sun glare, precipitation, temperature and crosswind along the drive${hidden.length ? `; terrain check: hills likely hide the sun on ${hidden.length} glare stretch${hidden.length === 1 ? '' : 'es'} (hatched)` : ''}">
+      <defs><pattern id="nodata" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#f1f3f5"/><line x1="0" y1="0" x2="0" y2="6" stroke="#ced4da" stroke-width="2"/></pattern>
+        <pattern id="terrainhide" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="5" height="5" fill="#ffffff" opacity=".6"/><line x1="0" y1="0" x2="0" y2="5" stroke="#495057" stroke-width="1.6"/></pattern></defs>
       ${parts.join('')}</svg>`;
     const svgEl = el.firstElementChild;
     const pick = (e) => {

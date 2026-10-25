@@ -121,11 +121,16 @@ A third map view, **3D terrain**, drapes the planned route (colored by the proje
 
 ## Terrain check (approximate, on demand)
 Each sun-glare card has a "Check terrain (approximate)" button. It casts a line-of-sight ray toward the
-low sun from up to 6 points of that stretch over bare-earth elevation (AWS Terrain Tiles, ~30 m) and
-says whether hills likely hide the sun, the horizon is open, or the check is unavailable. Buildings,
-trees and road cuts are not modeled, and it never changes the glare severity, KPIs, exposure score or
-optimizer. The elevation tiles are an online dependency even in synthetic demo mode. Details:
-[docs/OCCLUSION.md](docs/OCCLUSION.md).
+low sun from up to 6 points of that stretch (≤ 60 rays per plan) over bare-earth elevation (AWS Terrain
+Tiles, ~30 m) and says whether hills likely hide the sun, the horizon is open, or the check is
+unavailable. After a check, the card adds "Terrain-adjusted strong glare: X of Y min", the timeline's
+Sun glare row hatches stretches where terrain likely hides the sun (with a legend note), and the glare
+KPI subtext adds "(terrain check: …)". This terrain-adjusted glare is a SEPARATE number: geometric and
+cloud-adjusted glare, KPI values, advice severity, exposure score and optimizer are unchanged. Points
+between two checked points take their verdict only if both agree; anything else stays "not checked".
+"Check terrain automatically after each plan" (off by default, remembered in this browser only while
+ticked) runs it after every plan. Buildings, trees and road cuts are not modeled. The elevation tiles
+are an online dependency even in synthetic demo mode. Details: [docs/OCCLUSION.md](docs/OCCLUSION.md).
 
 ## Optional: follow my location
 

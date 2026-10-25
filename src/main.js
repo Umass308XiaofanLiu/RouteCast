@@ -21,7 +21,8 @@ import { createConditionLayer, condLegendHtml, COND_SVG, COND_RING } from './ui/
 import { createChase } from './ui/chase3d.js';
 import { rowConditions } from './lib/conditions.js';
 import { createDemSampler } from './lib/demsampler.js';
-import { checkGlareWindows, terrainLine, TERRAIN_SOURCE_NOTE } from './lib/terraincheck.js';
+import { checkGlareWindows, terrainLine, TERRAIN_SOURCE_NOTE, MAX_TOTAL_RAYS } from './lib/terraincheck.js';
+import { terrainAdjustedGlare, terrainAdjustedLine, terrainKpiNote } from './lib/terrainglare.js';
 import { OPTIMIZER_TRAFFIC_NOTE, MODE_LABEL } from './lib/traffic/index.js';
 import L from 'leaflet';
 import { fetchOverlays, evaluateOverlays, overlaySources } from './lib/traffic/overlays/index.js';
@@ -350,8 +351,14 @@ function renderProvenance() {
   }
 }
 
-function kpi(cls, label, value, sub) {
-  return `<div class="kpi ${cls}"><div class="k-label">${esc(label)}</div><div class="k-value">${esc(value)}</div><div class="k-sub">${esc(sub)}</div></div>`;
+function kpi(cls, label, value, sub, extra = '') {
+  return `<div class="kpi ${cls}"><div class="k-label">${esc(label)}</div><div class="k-value">${esc(value)}</div><div class="k-sub">${esc(sub)}${extra ? ` <span class="k-terrain">${esc(extra)}</span>` : ''}</div></div>`;
+}
+// Glare KPI subtext suffix, only after a finished terrain check for the current evaluation.
+function terrainKpiSuffix() {
+  const tc = state.terrainCheck;
+  if (tc?.status !== 'done' || (tc.adj && tc.adj.ev !== state.ev)) return '';
+  return terrainKpiNote(tc.adj, { failed: tc.failed });
 }
 
 function renderKpis() {
@@ -370,7 +377,8 @@ function renderKpis() {
       glareStrong >= 1 ? `${Math.round(glareStrong)} min` : t.glareMin[2] + t.glareMin[3] >= 1 ? 'Softened' : glareGeo >= 1 ? 'Mild only' : 'None',
       glareStrong >= 1 || glareGeo < 1
         ? glareGeo >= 1 ? `strong/severe · ${Math.round(glareGeo)} min sun in view` : 'sun never in your eyes'
-        : t.glareMin[2] + t.glareMin[3] >= 1 ? `by clouds · ${Math.round(t.glareMin[2] + t.glareMin[3])} min low sun ahead` : `${Math.round(glareGeo)} min sun in view`
+        : t.glareMin[2] + t.glareMin[3] >= 1 ? `by clouds · ${Math.round(t.glareMin[2] + t.glareMin[3])} min low sun ahead` : `${Math.round(glareGeo)} min sun in view`,
+      terrainKpiSuffix()
     ),
     kpi('night', 'After dark', ev.totals.nightMin >= 1 ? formatDuration(ev.totals.nightMin * 60, { compact: true }) : 'None', `${Math.round((ev.totals.nightMin / (ev.driveSec / 60)) * 100)}% of the drive`),
     kpi('wet', 'Wet / snowy', t.wetMin >= 1 ? formatDuration(t.wetMin * 60, { compact: true }) : 'Dry', t.snowMin >= 1 ? `${Math.round(t.snowMin)} min snow/ice` : t.missingMin > 1 ? `${Math.round(t.missingMin)} min no forecast` : model.source.kind === 'synthetic' ? 'scenario precipitation' : 'forecast precipitation'),
@@ -399,11 +407,11 @@ function renderAdvice() {
   list.querySelectorAll('.rec').forEach((li) => {
     const activate = () => focusRec(Number(li.dataset.i));
     li.addEventListener('click', (e) => {
-      if (e.target.closest('[data-apply], [data-terrain-run]')) return;
+      if (e.target.closest('[data-apply], .rec-terrain')) return;
       activate();
     });
     li.addEventListener('keydown', (e) => {
-      if (e.target.closest('[data-apply], [data-terrain-run]')) return;
+      if (e.target.closest('[data-apply], .rec-terrain')) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         activate();
@@ -411,16 +419,45 @@ function renderAdvice() {
     });
   });
   list.querySelectorAll('[data-apply]').forEach((b) => b.addEventListener('click', () => applyDeparture(Number(b.dataset.apply))));
-  list.querySelectorAll('[data-terrain-run]').forEach((b) => b.addEventListener('click', runTerrainCheck));
+  bindTerrainControls();
 }
 
 // ---------- terrain check (approximate, separate from the glare score) ----------
-// On demand only: it loads AWS Terrain Tiles (a separate online dependency, also in synthetic mode).
-// It never changes glare severity, KPIs, the exposure score or the optimizer.
-let demSampler = null;
-function resetTerrainCheck() {
+// On demand by default: it loads AWS Terrain Tiles (a separate online dependency, also in synthetic mode).
+// Optional auto-run after each evaluation only when the user ticked "Check terrain automatically"
+// (localStorage 'glarepilot.terrainAuto' = '1', stored only while ticked).
+// It never changes r.glare / r.expected, KPI values, advice severity, the exposure score or the optimizer:
+// terrain-adjusted glare lives in state.terrainCheck.adj (keyed by sample index, see lib/terrainglare.js).
+// NOTE: resetTerrainCheck()/terrainHtml() also run during module start-up (demo boot), before later
+// module-level let/const bindings exist, so the auto preference lives in function scope / on state.
+function terrainAutoKey() {
+  return 'glarepilot.terrainAuto';
+}
+function terrainAuto() {
+  try {
+    return localStorage.getItem(terrainAutoKey()) === '1';
+  } catch {
+    return false;
+  }
+}
+function setTerrainAuto(on) {
+  try {
+    if (on) localStorage.setItem(terrainAutoKey(), '1');
+    else localStorage.removeItem(terrainAutoKey());
+  } catch {
+    /* storage unavailable: setting lasts for this page only */
+  }
+  state.terrainAutoSession = on;
+}
+function autoOn() {
+  return state.terrainAutoSession ?? terrainAuto();
+}
+function resetTerrainCheck({ auto = true } = {}) {
   state.terrainCheck?.ctrl?.abort();
-  state.terrainCheck = { status: 'idle', results: new Map(), ctrl: null };
+  const tc = { status: 'idle', results: new Map(), ctrl: null, adj: null, failed: false };
+  state.terrainCheck = tc;
+  // evaluate() renders right after this reset; start the automatic check afterwards if enabled.
+  if (auto && autoOn()) setTimeout(() => state.terrainCheck === tc && tc.status === 'idle' && ['live', 'snapshot', 'synthetic'].includes(state.model?.source?.kind) && runTerrainCheck());
 }
 function terrainHtml(a) {
   const tc = state.terrainCheck || { status: 'idle', results: new Map() };
@@ -429,15 +466,27 @@ function terrainHtml(a) {
   if (tc.status === 'pending') body = '<span class="terrain-pending">Checking terrain…</span>';
   else if (tc.status === 'done') {
     const r = tc.results.get(a);
-    body = `<span class="terrain-${esc(r?.status || 'unknown')}">${esc(terrainLine(r))}</span>`;
+    const adjLine = terrainAdjustedLine(tc.adj?.windows.get(a));
+    body = `<span class="terrain-${esc(r?.status || 'unknown')}">${esc(terrainLine(r))}</span>${adjLine ? `<div class="terrain-adjusted">${esc(adjLine)}</div>` : ''}`;
   } else body = '<button type="button" class="ghost small" data-terrain-run>Check terrain (approximate)</button> <span class="fineprint">loads elevation tiles</span>';
-  return `<div class="rec-terrain" data-terrain="${a}" title="${note}" aria-live="polite">${body}<div class="fineprint">${note}.</div></div>`;
+  const first = state.recs.find((r) => r.kind === 'glare' && r.range)?.range[0] === a;
+  const autoBox = first ? `<label class="terrain-auto fineprint"><input type="checkbox" data-terrain-auto${autoOn() ? ' checked' : ''}> Check terrain automatically after each plan</label>` : '';
+  return `<div class="rec-terrain" data-terrain="${a}" title="${note}" aria-live="polite">${body}${autoBox}<div class="fineprint">${note}.</div></div>`;
+}
+function bindTerrainControls() {
+  document.querySelectorAll('#advice [data-terrain-run]').forEach((b) => b.addEventListener('click', () => runTerrainCheck()));
+  document.querySelectorAll('#advice [data-terrain-auto]').forEach((b) =>
+    b.addEventListener('change', () => {
+      setTerrainAuto(b.checked);
+      if (b.checked && state.terrainCheck?.status === 'idle') runTerrainCheck();
+    })
+  );
 }
 function updateTerrainLines() {
   document.querySelectorAll('#advice [data-terrain]').forEach((el) => {
     el.outerHTML = terrainHtml(Number(el.dataset.terrain));
   });
-  document.querySelectorAll('#advice [data-terrain-run]').forEach((b) => b.addEventListener('click', runTerrainCheck));
+  bindTerrainControls();
 }
 async function runTerrainCheck() {
   const m = state.model;
@@ -445,22 +494,30 @@ async function runTerrainCheck() {
   if (!m || !ev || state.terrainCheck?.status === 'pending') return;
   const descs = state.recs.filter((r) => r.kind === 'glare' && r.range).map((r) => describeGlareWindow(m, ev, r.range));
   if (!descs.length) return;
-  resetTerrainCheck();
+  resetTerrainCheck({ auto: false });
   const tc = state.terrainCheck;
   tc.status = 'pending';
   tc.ctrl = new AbortController();
   updateTerrainLines();
-  demSampler ??= createDemSampler({ zoom: 12 });
+  // Reuse decoded DEM tiles across re-evaluations of the same route; drop them for a new route.
+  if (state.demSampler && state.demRoute !== m.route) state.demSampler.clear();
+  state.demSampler ??= createDemSampler({ zoom: 12 });
+  state.demRoute = m.route;
   try {
-    const res = await checkGlareWindows(m, ev, descs, { sampleElevation: demSampler, signal: tc.ctrl.signal });
+    const res = await checkGlareWindows(m, ev, descs, { sampleElevation: state.demSampler, signal: tc.ctrl.signal, maxTotalRays: MAX_TOTAL_RAYS });
     if (state.terrainCheck !== tc) return; // stale (trip or departure changed)
     for (const r of res) tc.results.set(r.a, r);
+    tc.adj = terrainAdjustedGlare(ev, res);
+    tc.failed = res.every((r) => r.status === 'unknown' && !r.samples.some((x) => x.coverage > 0));
   } catch (e) {
     if (e?.name === 'AbortError' || state.terrainCheck !== tc) return;
+    tc.failed = true;
   }
   tc.status = 'done';
   updateTerrainLines();
-  announce('Terrain check finished (approximate).');
+  renderKpis();
+  timeline?.render({ terrain: tc.adj });
+  announce(`Terrain check finished (approximate). ${terrainKpiNote(tc.adj, { failed: tc.failed }).replace(/^\(|\)$/g, '')}.`);
 }
 
 function focusRec(i) {

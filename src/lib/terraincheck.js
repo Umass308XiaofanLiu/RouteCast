@@ -38,13 +38,18 @@ export function windowStatus({ checked, blocked, visible }) {
   return 'unknown'; // some visible, rest unknown, none blocked: not enough to call it open
 }
 
+/** Hard cap on horizon rays per evaluation (all windows together). */
+export const MAX_TOTAL_RAYS = 60;
+
 /**
  * @param model trip model (model.samples[i].lat/lon)
  * @param ev    evaluateTrip result (ev.rows[i].sun.altitude/azimuth, ev.rows[i].glare.severity)
  * @param descs describeGlareWindow(...) results ({a, b, peak})
+ * Rays: ≤ maxSamplesPerWindow per window and ≤ MAX_TOTAL_RAYS in total; samples beyond the budget stay
+ * unchecked (result.capped = true). Pass the same sampleElevation to reuse its decoded-tile cache.
  * @returns Promise<Array<{a,b,peak,checked,blocked,visible,unknown,status,samples:Array}>>
  */
-export async function checkGlareWindows(model, ev, descs, { sampleElevation, maxSamplesPerWindow = 6, signal, concurrency = 4, horizonOpts = {} } = {}) {
+export async function checkGlareWindows(model, ev, descs, { sampleElevation, maxSamplesPerWindow = 6, maxTotalRays = MAX_TOTAL_RAYS, signal, concurrency = 4, horizonOpts = {} } = {}) {
   if (typeof sampleElevation !== 'function') throw new TypeError('sampleElevation is required');
   const limit = Math.max(1, Math.min(4, concurrency));
   if (signal?.aborted) throw abortError();
@@ -57,9 +62,14 @@ export async function checkGlareWindows(model, ev, descs, { sampleElevation, max
     }
   };
   const jobs = [];
+  const total = Math.max(0, Math.min(MAX_TOTAL_RAYS, maxTotalRays | 0));
+  const perWindow = descs.length ? Math.min(maxSamplesPerWindow, Math.max(1, Math.floor(total / descs.length))) : 0;
   const results = descs.map((d) => {
     const r = { a: d.a, b: d.b, peak: d.peak, checked: 0, blocked: 0, visible: 0, unknown: 0, status: 'unknown', samples: [] };
-    for (const i of pickSamples(ev, d, maxSamplesPerWindow)) jobs.push({ r, i });
+    for (const i of pickSamples(ev, d, perWindow)) {
+      if (jobs.length < total) jobs.push({ r, i });
+      else r.capped = true; // ray budget reached: this sample stays unchecked
+    }
     return r;
   });
   let next = 0;
@@ -95,6 +105,7 @@ export function terrainLine(result) {
     case 'open':
       return 'Terrain check (approximate): open horizon toward the sun.';
     default:
+      if (result?.capped && !result?.checked) return 'Terrain check skipped for this stretch (per-plan ray limit reached).';
       if (result?.samples?.some((s) => s.coverage > 0)) return 'Terrain check inconclusive (sun too close to the terrain horizon or incomplete elevation data).';
       return 'Terrain check unavailable (elevation tiles did not load).';
   }

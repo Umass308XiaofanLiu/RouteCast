@@ -2,6 +2,10 @@
 
 Forecast weather and sun glare for the places **and the times** you will actually be on a long US drive.
 
+### ▶ [Watch the demo on YouTube](https://youtu.be/o3GfF2jkngo)
+
+[![GlarePilot demo video on YouTube](https://img.youtube.com/vi/o3GfF2jkngo/hqdefault.jpg)](https://youtu.be/o3GfF2jkngo)
+
 **Live demo:** https://umass308xiaofanliu.github.io/glarepilot/ — free, no login, no API key.
 
 | Quick link | What it opens |
@@ -11,9 +15,7 @@ Forecast weather and sun glare for the places **and the times** you will actuall
 | [`?demo=congestion-shift`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift) | **Manual demo scenario** (synthetic): an assumed 75 min mid-route delay pushes the New York arrival into hand-set rain and darkness |
 | [`?demo=sunset-glare&view=3d`](https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d) | **Manual demo scenario** (synthetic, clear skies) opened in the **3D chase preview** |
 
-**Demo video:** public YouTube link — TODO (human uploads). Narrated + captioned 2:50 recording of the live site: [GitHub release v1.0-hackachusetts](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts) (MP4 + SRT; synthetic TTS narration). Transcript: [docs/media/TRANSCRIPT.md](docs/media/TRANSCRIPT.md).
-
-[![GlarePilot demo video poster](docs/media/glarepilot-demo-poster.png)](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts)
+**Demo video:** https://youtu.be/o3GfF2jkngo — the public demonstration video (narrated + captioned operation recording of the live site; synthetic TTS narration). It was posted on YouTube after the SundAI submission locked; the SundAI entry itself links the GitHub-hosted MP4 in [release v1.0-hackachusetts](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts) (MP4 + SRT). Transcript: [docs/media/TRANSCRIPT.md](docs/media/TRANSCRIPT.md).
 
 Hackachusetts 2026 entry. Built with Kiro CLI — see [docs/SUBMISSION.md](docs/SUBMISSION.md).
 

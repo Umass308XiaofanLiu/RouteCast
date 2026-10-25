@@ -1,0 +1,63 @@
+# Terrain sun-occlusion — prototype assessment
+
+Status: PROTOTYPE library only (`src/lib/horizon.js`). Not wired into the UI or the glare score.
+
+## Three different layers (do not conflate)
+- A. Terrain rendering: drawing hills in the 2D/3D views. Cosmetic; says nothing about glare.
+- B. Visual lighting/shadows: shading the 3D chase preview. Cosmetic; also not a glare signal.
+- C. Geographic line-of-sight: "is the sun geometrically below the terrain horizon from this road
+  point?" Only this layer may ever inform glare, and only as a separate, labelled hint.
+
+## What the prototype does (layer C only)
+- `decodeTerrarium`, `tileXY`/`tileXYFloat`/`pixelLookup`, `metersPerPixel` for 256 px Web-Mercator tiles.
+- `terrainHorizon(...)` marches along the sun azimuth (great-circle `destinationPoint`), up to 30 km;
+  default ~60 geometric samples (dense near the car), or uniform `stepM`. Elevation angle =
+  atan((h − h0 − eyeHeight − drop)/d), drop = d²/2R·(1 − 0.13). Sampler is injected (sync or async).
+- `sunBlocked(...)` → `blocked | visible | unknown`. `unknown` when observer elevation is missing,
+  coverage < 0.9, no data, or the sun is within ±0.5° of the horizon. Missing data never yields `blocked`.
+- Tests (`tests/unit/horizon.test.mjs`): flat → −0.04° horizon, 2° sun visible; 300 m ridge at 3 km →
+  ≈5.67°, blocks a 3° sun, not 8°; ridge behind does not block; missing data → unknown; decode values;
+  fast-check property: raising any sample never lowers the horizon.
+- `scripts/horizon-probe.mjs` (PROBE, network): fetched 6 real z12 AWS tiles for Amherst, MA at az 290°
+  → horizon 0.73° at 23.7 km, coverage 1. Decoder sanity: Mt Greylock summit sample = 1064.0 m
+  (published summit 1,064 m).
+
+## Data sources (checked 2026-10-24 with curl)
+- AWS Terrain Tiles (`s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png`): HTTP 200,
+  256 px PNG, ~120 KB per z12 tile. z12 ≈ 38.2 m/px at the equator, ≈ 29.3 m/px at 40°N (the
+  "38 m at 40°N" figure in the brief was wrong). Attribution is required (mixed sources; see the
+  AWS open-data registry page — I did not re-read its licence text today).
+- Mapterhorn (`tiles.mapterhorn.com/{z}/{x}/{y}.webp`, tilejson verified): terrarium encoding,
+  512 px WebP tiles, HTTP 200. Site states code BSD-3; terrain data "various open-data sources",
+  per-source list at mapterhorn.com/attribution (not reviewed in detail). WebP needs a decoder
+  (browser canvas is fine; Node would need a dependency).
+
+## Cost if wired in
+- Only for route samples with geometric glare ≥ 1 and sun altitude below ~15° (above that, terrain
+  rarely matters within 30 km): one ray of 30–60 lookups per sample, pure arithmetic once tiles load.
+- A 30 km ray crosses ~5–6 z12 tiles (probe: 6). Consecutive samples share most tiles.
+- Amherst→Chicago (~1,500 km): low-sun glare windows are typically one or two stretches of
+  ~100–250 km. Rough estimate: 40–120 unique z12 tiles ≈ 5–15 MB per evaluation, cacheable
+  (IndexedDB / HTTP cache). This is an estimate, not measured on a real route.
+- Re-evaluating departure-time alternatives reuses the same tiles (azimuth changes, corridor does not).
+
+## What it cannot see
+Buildings, trees, noise walls, road cuts, overpasses, bridges, tunnels; DEM smoothing at ~30 m/px
+(near-field terrain within ~100 m is unreliable); the car's own pitch; vertical datum/road-height
+offsets; refraction variability near the horizon (±0.5° is realistic). It answers "might terrain
+hide the sun", never "the road is in shade".
+
+## How to show results
+- Separate label, e.g. "Terrain may hide the sun here (≈ low confidence)", with the horizon angle and
+  the margin. Show `unknown` as "terrain not checked", not as safe.
+- Never silently lower or zero the glare score. If ever combined, keep the geometric score visible
+  and present the terrain hint beside it.
+
+## Remaining effort (realistic)
+- Browser tile fetch + canvas decode + cache + rate limits/attribution: 0.5–1 day.
+- Wire into trip evaluation as a separate field (async, off the main path, cancellable): 0.5 day.
+- UI label + legend + accessibility text: 0.5 day.
+- Tests: recorded tiles for e2e replay (helpers abort unknown hosts), unit cases at real ridges,
+  route-level sanity checks vs a known valley sunset: 1 day.
+- Review/validation against real observations: 0.5–1 day. Total ≈ 3–4 focused days; not hackathon-safe
+  before the demo.

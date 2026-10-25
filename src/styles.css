@@ -424,3 +424,13 @@ body.motion-off .cond-badge *, body.motion-off .cond-badge { animation: none !im
 .rec-terrain .terrain-open { color: #495057; }
 .rec-terrain .terrain-unknown, .rec-terrain .terrain-pending { color: #6c757d; font-style: italic; }
 /* ===== terrain check (approximate) — end ===== */
+/* ===== traffic-aware routing (optional, user key) — start ===== */
+.traffic-cfg { border: 1px dashed #b4c6e0; border-radius: 12px; padding: 8px 12px 10px; margin: 0 0 12px; }
+.traffic-cfg > summary { font-size: 12px; font-weight: 700; color: #1c4f8a; text-transform: uppercase; letter-spacing: .4px; cursor: pointer; }
+.traffic-cfg[open] > summary { margin-bottom: 8px; }
+.traffic-cfg .field { margin-bottom: 6px; }
+.traffic-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.traffic-row .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.prov .traffic-line { display: block; margin-top: 4px; }
+.prov .traffic-line.warn { color: #a61e4d; font-weight: 600; }
+/* ===== traffic-aware routing — end ===== */

@@ -22,6 +22,7 @@ import { createChase } from './ui/chase3d.js';
 import { rowConditions } from './lib/conditions.js';
 import { createDemSampler } from './lib/demsampler.js';
 import { checkGlareWindows, terrainLine, TERRAIN_SOURCE_NOTE } from './lib/terraincheck.js';
+import { OPTIMIZER_TRAFFIC_NOTE, MODE_LABEL } from './lib/traffic/index.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -164,7 +165,7 @@ async function plan(req) {
   show('loading');
   setStage('route');
   try {
-    const model = await buildTripModel({ ...req, breakPlan: BREAK_PLANS[req.breaks], places, signal: ctrl.signal, onStage: setStage });
+    const model = await buildTripModel({ ...req, traffic: trafficConfig(), breakPlan: BREAK_PLANS[req.breaks], places, signal: ctrl.signal, onStage: setStage });
     if (ctrl.signal.aborted) return;
     setStage('compute');
     await new Promise((r) => requestAnimationFrame(() => r()));
@@ -277,12 +278,13 @@ function provHtml() {
   const m = state.model;
   const ev = state.ev;
   const ny = (t) => `${formatClock(t, 'America/New_York')}, ${new Date(t).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' })}`;
+  const tr = m.source.traffic;
   const dly = ev.delay?.minutes ? ` plus your assumed ${formatDuration(ev.delay.extraSec)} delay ${ev.delay.label}` : '';
   const timing = `Each point uses conditions at its <strong>projected arrival time</strong>: departure ${esc(formatClock(ev.departureUtc, m.originTz))} + routed drive time${$('breaks').value !== 'none' && m.source.kind !== 'synthetic' ? ' + breaks' : ''}${esc(dly)}.`;
   const what = `<details><summary>What is forecast, computed, estimated or assumed?</summary><ul>
       <li><strong>Weather</strong>: ${m.source.kind === 'synthetic' ? 'hand-set synthetic values (not a forecast)' : 'Open-Meteo model forecast for the hour each point is reached (not an observation, not current conditions)'}.</li>
       <li><strong>Sun position and glare</strong>: computed with SunCalc for each point's future arrival time and heading.</li>
-      <li><strong>Arrival times</strong>: estimated from ${esc(m.route.engine)} free-flow routing${dly ? ' plus your delay assumption' : ''}; no live or predicted traffic is used.</li>
+      <li><strong>Arrival times</strong>: ${tr?.retrievedAt ? `estimated from ${esc(tr.provider)} traffic-aware routing (${esc(MODE_LABEL[tr.mode])}, ${esc(tr.timing)})${dly ? ' plus your separate delay assumption' : ''}` : `estimated from ${esc(m.route.engine)} free-flow routing${dly ? ' plus your delay assumption' : ''}; no live or predicted traffic is used`}.</li>
       <li><strong>Observed / live data</strong>: none. GlarePilot does not show current conditions and does not track your location.</li></ul></details>`;
   if (m.source.kind === 'synthetic') {
     return { cls: 'synthetic', html: `<strong>Manual demo scenario — synthetic data.</strong> “${esc(m.source.title)}”: ${esc(m.source.story)} Weather${state.ev.delay?.minutes ? ' and the traffic delay are' : ' is'} hand-set on purpose; no weather, routing or traffic API is called (only map tiles load). Route geometry and routed times come from a recorded real ${esc(m.route.engine)} route captured ${esc(ny(m.source.routeCapturedAt))}. ${timing}${what}` };
@@ -290,7 +292,17 @@ function provHtml() {
   if (m.source.kind === 'snapshot') {
     return { cls: 'snapshot', html: `<strong>Recorded real data — not current.</strong> ${esc(m.route.engine)} route and Open-Meteo forecast retrieved ${esc(ny(m.source.capturedAt))}. ${timing}${what}` };
   }
-  return { cls: 'live', html: `<strong>Real-data plan.</strong> ${esc(m.route.engine)} route and Open-Meteo forecast retrieved ${esc(ny(m.source.capturedAt))}. Trip departs ${esc(formatClock(ev.departureUtc, m.originTz))} and arrives ${esc(formatClock(ev.arrivalUtc, m.destTz))}. ${timing}${what}` };
+  return { cls: 'live', html: `<strong>Real-data plan.</strong> ${esc(m.route.engine)} route and Open-Meteo forecast retrieved ${esc(ny(m.source.capturedAt))}. Trip departs ${esc(formatClock(ev.departureUtc, m.originTz))} and arrives ${esc(formatClock(ev.arrivalUtc, m.destTz))}. ${timing}${trafficLine(tr, ny)}${what}` };
+}
+
+// Traffic provenance line. Manual delay assumptions are never described as traffic.
+function trafficLine(tr, ny) {
+  if (!tr) return '';
+  if (!tr.retrievedAt) return `<span class="traffic-line warn" id="traffic-prov">Traffic: ${esc(tr.provider)} unavailable — ${esc(tr.error || 'no data')} Free-flow routing used instead.</span>`;
+  const min = (s) => (s == null ? 'n/a' : formatDuration(Math.max(0, s)));
+  const ff = tr.freeFlowSec != null ? `free-flow ${min(tr.freeFlowSec)}` : tr.typicalSec != null ? `typical ${min(tr.typicalSec)} (no free-flow figure from ${esc(tr.provider)})` : 'free-flow n/a';
+  const dl = tr.trafficDelaySec != null ? `traffic delay ${tr.trafficDelaySec < 0 ? '−' : '+'}${min(Math.abs(tr.trafficDelaySec))}` : 'traffic delay n/a';
+  return `<span class="traffic-line" id="traffic-prov">Traffic: <strong>${esc(tr.provider)} · ${esc(tr.mode)}</strong> — ${esc(MODE_LABEL[tr.mode])}; ${esc(tr.timing)}. Retrieved ${esc(ny(tr.retrievedAt))}. With traffic ${min(tr.totalSec)} vs ${ff}; ${dl}.</span>`;
 }
 
 function renderProvenance() {
@@ -315,8 +327,12 @@ function renderProvenance() {
   } else {
     b.className = 'badge live';
     b.textContent = `Live forecast · ${m.route.engine} route`;
-    banner.hidden = !m.warnings.length;
-    banner.textContent = m.warnings.length ? `Primary routing service unavailable; used ${m.route.engine} instead.` : '';
+    const msgs = [];
+    const trWarn = m.warnings.find((w) => w.startsWith('Traffic-aware routing failed'));
+    if (trWarn) msgs.push(trWarn);
+    if (m.warnings.some((w) => w !== trWarn)) msgs.push(`Primary routing service unavailable; used ${m.route.engine} instead.`);
+    banner.hidden = !msgs.length;
+    banner.textContent = msgs.join(' ');
   }
 }
 
@@ -530,7 +546,8 @@ function renderOptimizer() {
   const summary = opt.worthIt
     ? `Leaving at <strong>${esc(formatClock(b.departureUtc, model.originTz))}</strong> lowers the exposure score from ${Math.round(opt.current.score)} to ${Math.round(b.score)}. Tap any bar to re-plan instantly.`
     : `Your planned time is already about as good as it gets within ±3 h (score ${Math.round(opt.current.score)}). Tap a bar to compare.`;
-  $('optimizer').innerHTML = `<div class="opt">${bars}</div><p class="opt-summary">${summary}</p>`;
+  const trNote = model.source.traffic?.retrievedAt ? `<p class="fineprint" id="opt-traffic-note">${esc(OPTIMIZER_TRAFFIC_NOTE)}</p>` : '';
+  $('optimizer').innerHTML = `<div class="opt">${bars}</div><p class="opt-summary">${summary}</p>${trNote}`;
   $('optimizer').querySelectorAll('[data-dep]').forEach((el) => el.addEventListener('click', () => applyDeparture(Number(el.dataset.dep))));
 }
 
@@ -949,6 +966,44 @@ async function openSnapshot(id = PRESETS[0].id) {
 }
 $('use-snapshot').addEventListener('click', () => openSnapshot());
 $('error-snapshot').addEventListener('click', () => openSnapshot(state.lastRequest ? PRESETS.find((p) => PLACES[p.origin].label === state.lastRequest.origin.label && PLACES[p.dest].label === state.lastRequest.dest.label)?.id : undefined));
+
+// ---------- optional traffic provider key (never logged; memory only unless "Remember" is ticked) ----------
+const TRAFFIC_STORE = 'glarepilot.traffic.v1';
+const trafficMem = { provider: 'none', key: '' };
+function trafficConfig() {
+  return trafficMem.provider !== 'none' && trafficMem.key ? { provider: trafficMem.provider, apiKey: trafficMem.key } : null;
+}
+function saveTraffic() {
+  trafficMem.provider = $('traffic-provider').value;
+  trafficMem.key = $('traffic-key').value.trim();
+  try {
+    if ($('traffic-remember').checked && trafficMem.key) localStorage.setItem(TRAFFIC_STORE, JSON.stringify({ provider: trafficMem.provider, key: trafficMem.key }));
+    else localStorage.removeItem(TRAFFIC_STORE);
+  } catch {
+    /* storage unavailable: memory only */
+  }
+}
+{
+  try {
+    const saved = JSON.parse(localStorage.getItem(TRAFFIC_STORE) || 'null');
+    if (saved?.key) {
+      $('traffic-provider').value = saved.provider;
+      $('traffic-key').value = saved.key;
+      $('traffic-remember').checked = true;
+    }
+  } catch {
+    /* ignore */
+  }
+  saveTraffic();
+  for (const id of ['traffic-provider', 'traffic-key', 'traffic-remember']) $(id).addEventListener('change', saveTraffic);
+  $('traffic-key').addEventListener('input', saveTraffic);
+  $('traffic-clear').addEventListener('click', () => {
+    $('traffic-key').value = '';
+    $('traffic-remember').checked = false;
+    saveTraffic();
+    announce('Traffic key cleared from this page and this device.');
+  });
+}
 
 // ---------- init ----------
 renderPresets();

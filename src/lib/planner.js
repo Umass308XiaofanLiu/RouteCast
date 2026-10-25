@@ -3,6 +3,7 @@ import { getRoute, fetchForecasts } from './providers.js';
 import { resampleRoute } from './geo.js';
 import { pickForecastPoints, assignSamplesToPoints } from './forecast.js';
 import { BREAK_PLANS, elapsedWithBreaks } from './trip.js';
+import { routeWithTraffic, TRAFFIC_PROVIDERS, MODE_LABEL } from './traffic/index.js';
 
 export const MAX_TRIP_HOURS = 30;
 
@@ -11,9 +12,30 @@ export const MAX_TRIP_HOURS = 30;
  * Forecasts cover departure − 3.5 h … arrival + 5.5 h so the optimizer can shift departures
  * and a delay scenario of up to 2 h stays inside the fetched window.
  */
-export async function buildTripModel({ origin, dest, departureUtc, breakPlan = BREAK_PLANS.none, places, fetchImpl = fetch, signal, nowMs = Date.now(), onStage = () => {} }) {
+export async function buildTripModel({ origin, dest, departureUtc, breakPlan = BREAK_PLANS.none, places, fetchImpl = fetch, signal, nowMs = Date.now(), onStage = () => {}, traffic = null }) {
   onStage('route');
-  const { route, warnings } = await getRoute(origin, dest, { fetchImpl, signal });
+  // Optional traffic-aware routing with the user's own key. Any failure falls back to free-flow
+  // routing with a visible warning (never silent); the key never appears in messages.
+  let route = null;
+  let warnings = [];
+  let trafficInfo = null;
+  if (traffic?.provider && traffic.provider !== 'none' && traffic.apiKey) {
+    try {
+      route = await routeWithTraffic(origin, dest, { provider: traffic.provider, departureUtc, apiKey: traffic.apiKey, fetchImpl, signal, nowMs });
+      trafficInfo = route.traffic;
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      const label = TRAFFIC_PROVIDERS[traffic.provider]?.label || traffic.provider;
+      trafficInfo = { provider: label, mode: 'none', departureUtc, retrievedAt: null, freeFlowSec: null, trafficDelaySec: null, error: e.message, note: MODE_LABEL.none };
+      route = null;
+      warnings.push(`Traffic-aware routing failed: ${e.message} Using free-flow routing instead.`);
+    }
+  }
+  if (!route) {
+    const r = await getRoute(origin, dest, { fetchImpl, signal });
+    route = r.route;
+    warnings = [...warnings, ...r.warnings];
+  }
   if (route.totalSec > MAX_TRIP_HOURS * 3600) {
     throw new Error(`This route is ${Math.round(route.totalSec / 3600)} h of driving; GlarePilot supports trips up to ${MAX_TRIP_HOURS} h.`);
   }
@@ -42,7 +64,7 @@ export async function buildTripModel({ origin, dest, departureUtc, breakPlan = B
     forecasts,
     places,
     warnings,
-    source: { kind: 'live', capturedAt: nowMs, routing: route.engine, forecast: 'Open-Meteo' },
+    source: { kind: 'live', capturedAt: nowMs, routing: route.engine, forecast: 'Open-Meteo', traffic: trafficInfo },
   };
 }
 

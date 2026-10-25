@@ -115,8 +115,31 @@
                 </select>
               </div>
             </div>
-            <p class="assume-note">No live or predicted traffic source is connected. This is your own assumption; every later point's arrival time, forecast hour and sun angle are recomputed with it.</p>
+            <p class="assume-note">This is your own assumption, not traffic data (optional traffic-aware routing is configured separately below); every later point's arrival time, forecast hour and sun angle are recomputed with it.</p>
           </fieldset>
+          <details class="traffic-cfg" id="traffic-cfg">
+            <summary>Traffic-aware routing (needs your own API key)</summary>
+            <div class="row two">
+              <div class="field">
+                <label for="traffic-provider">Provider</label>
+                <select id="traffic-provider">
+                  <option value="none" selected>None (free-flow)</option>
+                  <option value="tomtom">TomTom</option>
+                  <option value="here">HERE</option>
+                  <option value="mapbox">Mapbox</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="traffic-key">API key / token</label>
+                <input id="traffic-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your own key" />
+              </div>
+            </div>
+            <div class="traffic-row">
+              <label class="check"><input type="checkbox" id="traffic-remember" /> Remember on this device</label>
+              <button type="button" id="traffic-clear" class="ghost small">Clear key</button>
+            </div>
+            <p class="assume-note" id="traffic-note">The key is sent only to the chosen provider, directly from your browser. It is kept in memory unless you tick “Remember on this device”. Departures more than 30 min ahead use the provider's predictive (historical/typical) traffic; near-now departures use live traffic. Any provider failure falls back to free-flow routing with a warning. Your delay assumption above is still added on top.</p>
+          </details>
           <div id="form-error" class="alert" role="alert" hidden></div>
           <button type="submit" id="plan" class="primary">
             <span class="btn-label">See my drive</span>

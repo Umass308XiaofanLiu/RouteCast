@@ -73,6 +73,20 @@ No live or predictive traffic provider is connected. The free public Valhalla an
 
 Instead, the "Traffic delay assumption" control lets you add +15 min … +2 h of extra time **spread linearly** over a chosen stretch: whole trip, first quarter, mid-route (37.5–62.5 % of the distance) or last quarter (`makeDelay` / `congestionAt` in `src/lib/trip.js`). Points before the stretch are unaffected, points inside it are partially delayed, and every later point is delayed in full; its arrival time, forecast hour, sun position and glare are recomputed. The "What the assumed delay changes" card compares arrival, wet roads, strong glare, after dark, crosswind and snow/ice minutes with and without the delay. The forecast is fetched for departure −3.5 h … arrival +5.5 h (`src/lib/planner.js`), so delays up to 2 h need no refetch.
 
+## Optional traffic-aware routing (your own API key)
+
+Off by default; without a key the app behaves exactly as above. In Real-data mode, open **Traffic-aware routing (needs your own API key)** under the trip form, choose TomTom, HERE or Mapbox and paste your own key. The key is kept in memory only unless you tick **Remember on this device** (then `localStorage["glarepilot.traffic.v1"]`); **Clear key** removes it from the page and the device. It is sent only to the chosen provider, directly from the browser (this is a static site — there is no GlarePilot server), and is never logged or shown in messages. Because the key is in the browser, use a key restricted to your own domain/localhost where the provider supports that.
+
+- Adapters (`src/lib/traffic/`): `routeWithTraffic(origin, dest, { provider, departureUtc, apiKey, fetchImpl, signal })` returns the normal route shape plus `traffic: { provider, mode, departureUtc, retrievedAt, freeFlowSec, trafficDelaySec, timing, note }`.
+  - **TomTom** Calculate Route: `traffic=true`, `departAt`, `sectionType=traffic`, `computeTravelTimeFor=all`, `instructionsType=coded`. Per-instruction cumulative times (else traffic-section delays) become per-point times; free-flow = `noTrafficTravelTimeInSeconds`, delay = `trafficDelayInSeconds`.
+  - **HERE** Routing v8: `departureTime`, `return=polyline,summary,travelSummary`, `spans=duration,length`; includes a Flexible Polyline decoder tested against the official example. Delay = `duration − baseDuration`.
+  - **Mapbox** Directions `driving-traffic`: `annotations=duration,distance` (per-segment); `depart_at` only for future departures (never in the past; capped at the app's 14-day horizon — the docs page did not state an explicit window). With `depart_at` Mapbox's duration is a historical prediction and it reports no free-flow time, so no delay figure is invented.
+  - A provider that returns only a total is labelled **scaled total, not per-segment**.
+- Semantics: departures more than 30 min ahead are labelled **predictive (provider historical/typical traffic for that departure time)**; near-now departures **live traffic**. The provenance strip shows provider · mode, retrieval time, with-traffic vs free-flow time and the traffic delay. Your manual delay assumption remains a separate, labelled user assumption added on top; it is never called traffic.
+- The resulting per-point times feed arrival times, forecast hours, sun position/glare and the optimizer. The optimizer makes **one traffic request per plan**: other departure bars reuse this plan's traffic timing (labelled under the chart).
+- Failures (401 invalid key, 403 not enabled/restricted, 429 rate/quota, timeouts) show a visible warning and fall back to free-flow Valhalla/OSRM routing.
+- Cost/quota: all three require an account and key; each currently advertises a free usage tier, but quotas, prices and terms change — check the provider's pricing page before use. Tests use mocked responses built from the documented formats; **no real provider call has been made**, so live response details remain unverified.
+
 ## Route condition icons
 
 - Original inline SVG icons written for this project (`src/ui/condlayer.js`); no third-party icon assets.

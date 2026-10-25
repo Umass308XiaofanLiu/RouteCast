@@ -39,7 +39,7 @@ function tomtomBody(s) {
 }
 
 async function openTrafficPage() {
-  const ctx = await openPage(chrome.browser, srv.url);
+  const ctx = await openPage(chrome.browser, srv.url, { query: 'experimental=traffic' });
   await ctx.page.evaluateOnNewDocument((body) => {
     const real = window.fetch.bind(window);
     window.__tt = [];
@@ -65,20 +65,21 @@ test('traffic: fake TomTom key -> predictive provenance, later arrival, key not 
   await choosePlace(page, 'dest', 'Chicago');
   await setDeparture(page, '2026-10-25T08:00');
   // Without a key: unchanged free-flow behaviour.
-  await page.click('#plan');
+  await page.$eval('#plan', (b) => b.click()); // DOM click: immune to layout shifts under the mouse
   await waitResult(page);
   assert.match(await text(page, '#kpis'), /Arrive 9:24 PM CDT/i);
   assert.match(await text(page, '#provenance'), /Valhalla route/);
   assert.equal(await page.$('#traffic-prov'), null);
   assert.equal(await page.evaluate(() => window.__tt.length), 0, 'no traffic request without a key');
 
-  // Configure TomTom with a fake key (memory only by default).
-  await page.click('#traffic-cfg > summary');
+  // Configure TomTom with a fake key (memory only by default). The section is experimental and labelled.
+  assert.match(await text(page, '#traffic-experimental'), /Experimental — not verified against real provider responses/);
+  await page.$eval('#traffic-cfg > summary', (s) => s.click());
   await page.select('#traffic-provider', 'tomtom');
   assert.equal(await page.$eval('#traffic-key', (e) => e.type), 'password');
   assert.equal(await page.$eval('#traffic-remember', (e) => e.checked), false);
   await page.type('#traffic-key', FAKE_KEY);
-  await page.click('#plan');
+  await page.$eval('#plan', (b) => b.click()); // DOM click: immune to layout shifts under the mouse
   await page.waitForFunction(() => document.querySelector('#traffic-prov'));
   await waitResult(page);
   const tt = await page.evaluate(() => window.__tt);
@@ -98,9 +99,9 @@ test('traffic: fake TomTom key -> predictive provenance, later arrival, key not 
   assert.ok(!(await page.content()).includes(FAKE_KEY.slice(0, 12) + '</'), 'key not rendered as text');
 
   // Remember -> stored; Clear -> removed everywhere.
-  await page.click('#traffic-remember');
+  await page.$eval('#traffic-remember', (c) => c.click());
   assert.match(await page.evaluate(() => localStorage.getItem('glarepilot.traffic.v1')), /tomtom/);
-  await page.click('#traffic-clear');
+  await page.$eval('#traffic-clear', (c) => c.click());
   assert.equal(await page.evaluate(() => localStorage.getItem('glarepilot.traffic.v1')), null);
   assert.equal(await page.$eval('#traffic-key', (e) => e.value), '');
   assert.deepEqual(calls.blocked.filter((x) => x.includes('tomtom')), []);
@@ -109,7 +110,7 @@ test('traffic: fake TomTom key -> predictive provenance, later arrival, key not 
 });
 
 test('traffic: provider 401 -> visible warning and free-flow fallback (never silent)', async () => {
-  const { page, errors } = await openPage(chrome.browser, srv.url);
+  const { page, errors } = await openPage(chrome.browser, srv.url, { query: 'experimental=traffic' });
   await page.evaluateOnNewDocument(() => {
     const real = window.fetch.bind(window);
     window.fetch = (input, init) => (String(input?.url || input).startsWith('https://api.tomtom.com/') ? Promise.resolve(new Response('{"error":{"description":"Invalid key"}}', { status: 401 })) : real(input, init));
@@ -119,10 +120,10 @@ test('traffic: provider 401 -> visible warning and free-flow fallback (never sil
   await choosePlace(page, 'origin', 'Amherst, MA');
   await choosePlace(page, 'dest', 'Chicago');
   await setDeparture(page, '2026-10-25T08:00');
-  await page.click('#traffic-cfg > summary');
+  await page.$eval('#traffic-cfg > summary', (s) => s.click());
   await page.select('#traffic-provider', 'tomtom');
   await page.type('#traffic-key', 'bad-key');
-  await page.click('#plan');
+  await page.$eval('#plan', (b) => b.click()); // DOM click: immune to layout shifts under the mouse
   await waitResult(page);
   assert.match(await text(page, '#snapshot-banner'), /Traffic-aware routing failed: TomTom rejected the API key \(401/);
   assert.match(await text(page, '#prov'), /Traffic: TomTom unavailable/);

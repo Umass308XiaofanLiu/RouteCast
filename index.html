@@ -115,10 +115,11 @@
                 </select>
               </div>
             </div>
-            <p class="assume-note">This is your own assumption, not traffic data (optional traffic-aware routing is configured separately below); every later point's arrival time, forecast hour and sun angle are recomputed with it.</p>
+            <p class="assume-note">This is your own assumption, not traffic data; every later point's arrival time, forecast hour and sun angle are recomputed with it.</p>
           </fieldset>
-          <details class="traffic-cfg" id="traffic-cfg">
+          <details class="traffic-cfg" id="traffic-cfg" hidden>
             <summary>Traffic-aware routing (needs your own API key)</summary>
+            <p class="traffic-experimental" id="traffic-experimental">Experimental — not verified against real provider responses</p>
             <div class="row two">
               <div class="field">
                 <label for="traffic-provider">Provider</label>
@@ -150,6 +151,7 @@
 
         <section id="advice-card" class="card advice-card" aria-labelledby="advice-title" hidden>
           <h2 class="card-title" id="advice-title">What to expect &amp; what to do</h2>
+          <div id="overlay-notes" class="overlay-notes" aria-live="polite"></div>
           <ol id="advice" class="advice"></ol>
           <p class="fineprint">Guidance comes from a transparent rules engine using the forecast and sun geometry shown here. It is a planning aid, not a safety guarantee — follow road signs, official alerts and your own judgment.</p>
         </section>

@@ -1,5 +1,12 @@
 # Traffic-aware timing — source assessment (GlarePilot)
 
+## Implementation status (2026-10-24, 22:05 EDT, branch b1-traffic-overlays)
+
+- **Provider-key routing (TomTom/HERE/Mapbox)**: hidden behind `?experimental=traffic` / `localStorage glarepilot.experimental.traffic=1`, labelled "Experimental — not verified against real provider responses". Adapters are mock-tested only (UNVERIFIED against real responses; no keys used).
+- **NYC DOT speeds (§2.1)**: implemented as an on-demand, near-term-only overlay (departure ≤ 60 min, `data_as_of` ≤ 20 min old). Re-probed 2026-10-25 01:30Z: HTTP 200 JSON, `Access-Control-Allow-Origin: *` (VERIFIED). Newest `data_as_of` was 19:57 local at 21:30 EDT, i.e. ~1.5 h old, so in practice the app usually shows "too old to use" (VERIFIED for that probe). `$where` comparisons on `data_as_of` returned `[]` in two probes (VERIFIED), and `link_points` is a text column, so the app requests `$order=data_as_of DESC&$limit=1000` and filters the route's NYC bounding box client-side. Free-flow references (50/30 mph) are GlarePilot assumptions; the feed has none.
+- **WZDx (§2.2)**: registry re-checked 2026-10-25 01:30Z. Corridor states MA/NY/PA/OH/IN/IL: only Indiana DOT (`in.carsprogram.org/carsapi_v1/api/wzdx`) works keyless — HTTP 200 `application/json`, ACAO `*`, 1,136 features, `update_date` current (VERIFIED). NYSDOT `511ny.org/api/wzdx` (`needapikey=false`) still returns `text/html` (VERIFIED: not usable). MassDOT, PA Turnpike, Ohio DOT, Illinois Tollway and IDOT require keys (registry). Only INDOT is used.
+- Real recorded samples of both feeds: `tests/fixtures/overlays/`.
+
 Research date: 2026-10-24, 21:01–21:30 EDT. Scope: traffic-aware, cumulative per-segment timing that feeds GlarePilot's forecast / sun / glare / optimizer, for the demo corridors:
 
 - **Amherst MA → New York**: I-91 (MA, CT) → I-95 (CT, NY/Bronx).

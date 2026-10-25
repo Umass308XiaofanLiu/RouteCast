@@ -444,3 +444,18 @@ body.motion-off .cond-badge *, body.motion-off .cond-badge { animation: none !im
 .ov-muted { margin: 0; color: #6c757d; font-size: 12px; font-style: italic; }
 .wz-pin { width: 24px; height: 24px; border-radius: 4px; background: #ffd43b; color: #3d2c00; border: 2px solid #3d2c00; font: 700 9px/20px system-ui, sans-serif; text-align: center; }
 /* ===== keyless live overlays — end ===== */
+
+/* ---------- views: 2D / 3D chase / 3D terrain parity (begin) ---------- */
+.view-stage { position: relative; }
+.view-preview { position: absolute; left: 54px; top: 10px; z-index: 500; display: flex; gap: 8px; align-items: center; background: rgba(15,27,51,.78); color: #fff; font-size: 12.5px; font-weight: 700; padding: 4px 4px 4px 10px; border-radius: 10px; }
+.view-preview[hidden] { display: none; }
+.view-preview .chip-btn { min-height: 28px; padding: 4px 9px; }
+.terrain .chase-top .terrain-state { position: static; }
+.terrain-map:focus-visible, .chase canvas:focus-visible { outline: 3px solid var(--brand-2); outline-offset: -3px; }
+.terrain-preview-pin { width: 18px; height: 18px; border-radius: 50%; border: 3px dashed #ff7a45; background: rgba(255,255,255,.85); pointer-events: none; }
+.terrain.view-enter, .chase.view-enter, #map.view-enter { animation: view-in .3s ease both; }
+@media (prefers-reduced-motion: reduce) { .view-enter { animation: none !important; } }
+body.motion-off .view-enter { animation: none !important; }
+.terrain .chase-controls { right: 44px; } /* wraps before the (i) attribution button */
+@media (max-width: 640px) { .terrain .chase-controls [data-act="return"] { order: 1; } } /* two rows: Play ◀ ▶ −Near+ / Return */
+/* ---------- views (end) ---------- */

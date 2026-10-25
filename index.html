@@ -238,17 +238,20 @@
                   <span class="chase-where" data-hud="where"></span>
                 </div>
                 <div class="chase-gps" data-hud="gps" hidden></div>
-                <div class="chase-state" data-hud="state" aria-live="polite"></div>
+                <div class="chase-state" data-hud="state"></div>
                 <div class="chase-ahead" data-hud="ahead"></div>
                 <div class="chase-controls" role="group" aria-label="3D preview controls">
-                  <button type="button" class="chip-btn" data-act="play" aria-pressed="false">Play</button>
-                  <button type="button" class="chip-btn" data-act="back" aria-label="Look behind">◀</button>
-                  <button type="button" class="chip-btn" data-act="fwd" aria-label="Look ahead">▶</button>
-                  <button type="button" class="chip-btn" data-act="return" disabled>Return to playback position</button>
-                  <span class="chase-zoom"><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer">−</button><span data-hud="level">Near</span><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther">+</button></span>
+                  <button type="button" class="chip-btn" data-act="play" aria-pressed="false" title="Play / pause (Space)">Play</button>
+                  <button type="button" class="chip-btn" data-act="back" aria-label="Look behind" title="Look behind (← / ↓)">◀</button>
+                  <button type="button" class="chip-btn" data-act="fwd" aria-label="Look ahead" title="Look ahead (→ / ↑)">▶</button>
+                  <button type="button" class="chip-btn" data-act="return" disabled title="Return to playback position (Home / Esc)">Return to playback position</button>
+                  <span class="chase-zoom" role="group" aria-label="Camera distance"><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther (−)" title="Camera farther (− key)">−</button><span data-hud="level" aria-label="Camera level">Near</span><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer (+)" title="Camera nearer (+ key)">+</button></span>
                 </div>
               </div>
               <!-- terrain view (MapLibre, lazy): filled by src/ui/terrain3d.js -->
+              <!-- views: 2D label for a preview made in a 3D view; throttled polite HUD announcements -->
+              <div id="view-preview" class="view-preview" hidden><span data-hud="state"></span><button type="button" class="chip-btn" data-act="return">Return to playback position</button></div>
+              <div id="view-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
               <div id="terrain" class="terrain" role="region" aria-label="3D terrain view of the planned route (simulated playback, not GPS)" hidden></div>
             </div>
             <p id="terrain-msg" class="terrain-msg" role="status" hidden></p>

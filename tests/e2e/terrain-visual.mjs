@@ -11,6 +11,8 @@
 // ONLY (regex on shot names, e.g. ONLY=^fx- for the weather/light/wind overlay shots).
 // Writes terrain-integration-*.png into outDir (default /tmp/gp_terrain_visual) and prints a
 // JSON summary (page errors, console warnings, HUD overlap checks) per shot. Inspect the PNGs.
+// ONLY=^views runs the view/camera parity check (2D → terrain fly-in, wheel preview, return,
+// level buttons, reduced motion) and writes views-*.png; it uses ?demo=sunset-glare&qa.
 import puppeteer from 'puppeteer-core';
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,7 +42,7 @@ const SHOTS = [
 /** Pairs of visible HUD boxes inside #terrain that intersect (should be none). */
 function hudOverlaps() {
   const root = document.getElementById('terrain');
-  const sel = ['.chase-tag', '.chase-where', '.terrain-note', '.terrain-ahead', '.chase-controls > *', '.maplibregl-ctrl-attrib'];
+  const sel = ['.chase-tag', '.chase-where', '.terrain-state', '.terrain-note', '.terrain-ahead', '.chase-controls > *', '.maplibregl-ctrl-attrib'];
   const boxes = [];
   for (const s of sel) {
     for (const el of root.querySelectorAll(s)) {
@@ -154,9 +156,119 @@ try {
     summary.push({ shot: shot.name, file, webglCanvas: !!canvas, fx, level, where, gps, ...info, contextLoss, errors, warnings: warnings.length, warningSample: warnings.slice(0, 3) });
     await page.close();
   }
+  // ---- view/camera parity (ONLY=^views): 2D → terrain fly-in, wheel preview, return, levels ----
+  if (!process.env.ONLY || new RegExp(process.env.ONLY).test('views')) {
+    for (const reduced of [false, true]) summary.push(await viewsCheck(reduced));
+  }
 } finally {
   await browser.close();
   rmSync(profile, { recursive: true, force: true });
 }
 console.log(JSON.stringify(summary, null, 2));
-process.exitCode = summary.some((s) => s.errors.length) ? 1 : 0;
+const failed = summary.filter((s) => s.errors.length || (s.checks && Object.values(s.checks).some((v) => v === false)));
+process.exitCode = failed.length ? 1 : 0;
+
+async function viewsCheck(reduced) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.setViewport({ width: 1440, height: 1000 });
+  if (reduced) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+  await page.goto(`${BASE}?demo=sunset-glare&qa`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('#result:not([hidden])', { timeout: 60000 });
+  await page.$eval('#scrub', (s) => {
+    s.value = String(Math.round(Number(s.max) * 0.3));
+    s.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await sleep(1500);
+  const sel = await page.$eval('#scrub', (s) => Number(s.value));
+  const cam = () => page.evaluate(() => window.__gpTerrain?.state ?? null);
+  const hudText = () => page.$eval('#terrain [data-hud="state"]', (e) => e.textContent).catch(() => null);
+  const dist = (a, b) => Math.hypot((a.lon - b.lon) * Math.cos((a.lat * Math.PI) / 180), a.lat - b.lat) * 111.2; // km
+  const checks = {};
+  const out = {};
+  await page.$eval('#map', (e) => e.scrollIntoView({ block: 'center' }));
+  await page.click('[data-view="terrain"]');
+  // camera samples during the fly-in (first time: wait for the lazily created view)
+  await page.waitForFunction(() => window.__gpTerrain?.state?.visible, { timeout: 60000 });
+  const samples = [];
+  const t0 = Date.now();
+  while (Date.now() - t0 < 3500) {
+    const s = await cam();
+    samples.push({ t: Date.now() - t0, flying: s.flying, ...s.camera });
+    await sleep(250);
+  }
+  out.flySamples = samples.map((s) => ({ t: s.t, flying: s.flying, zoom: +s.zoom.toFixed(2), pitch: +s.pitch.toFixed(1) }));
+  const first = samples[0];
+  const last = samples[samples.length - 1];
+  if (reduced) checks.instantNoFly = samples.every((s) => !s.flying) && Math.abs(first.zoom - last.zoom) < 0.05 && Math.abs(first.pitch - last.pitch) < 0.5;
+  else checks.flyAnimates = samples.some((s) => s.flying) && last.pitch - first.pitch > 10 && last.zoom - first.zoom > 1 && !last.flying;
+  checks.positionKept = (await cam()).cur === sel;
+  await sleep(6000); // tiles settle
+  await page.$eval('#terrain', (e) => e.scrollIntoView({ block: 'center' }));
+  await sleep(500);
+  const before = (await cam()).camera;
+  out.hudBefore = await hudText();
+  // wheel over the map previews ahead (no map zoom)
+  const box = await (await page.$('#terrain .terrain-map')).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let k = 0; k < 5; k++) {
+    await page.mouse.wheel({ deltaY: 240 });
+    await sleep(80);
+  }
+  await sleep(2500);
+  const ahead = await cam();
+  out.hudAhead = await hudText();
+  checks.wheelPreviews = /^Previewing ahead: \+/.test(out.hudAhead) && ahead.preview > 0 && ahead.cur === sel;
+  checks.wheelMovesCenter = dist(before, ahead.camera) > 1;
+  checks.wheelNotZoom = Math.abs(ahead.camera.zoom - before.zoom) < 0.05;
+  out.centerMoveKm = +dist(before, ahead.camera).toFixed(2);
+  if (!reduced) {
+    await sleep(4000);
+    await page.screenshot({ path: join(OUT, 'views-terrain-preview.png') });
+  }
+  // 2D shows the preview pin + label for the terrain preview
+  await page.click('[data-view="2d"]');
+  await sleep(1200);
+  checks.pin2d = await page.evaluate(() => !!document.querySelector('#map .preview-pin') && !document.getElementById('view-preview').hidden);
+  out.label2d = await page.$eval('#view-preview', (e) => e.textContent.trim());
+  if (!reduced) await page.screenshot({ path: join(OUT, 'views-2d-preview.png') });
+  await page.click('[data-view="terrain"]');
+  await sleep(reduced ? 800 : 3000);
+  await page.waitForFunction(() => !window.__gpTerrain.state.flying, { timeout: 15000 });
+  checks.previewSurvives = (await cam()).preview === ahead.preview;
+  await page.click('#terrain [data-act="return"]');
+  await sleep(2000);
+  await page.waitForFunction(() => !window.__gpTerrain.map.isMoving(), { timeout: 15000 });
+  const back = await cam();
+  out.hudReturn = await hudText();
+  out.returnKm = +dist(before, back.camera).toFixed(3);
+  out.returnState = { preview: back.preview, cur: back.cur, flying: back.flying };
+  checks.returnWorks = /At playback position/.test(out.hudReturn) && back.preview === 0 && dist(before, back.camera) < 0.3;
+  // level buttons and Ctrl+wheel change the camera distance (pitch/zoom)
+  await page.click('#terrain [data-act="nearer"]');
+  await sleep(1500);
+  const near = await cam();
+  await page.click('#terrain [data-act="farther"]');
+  await page.click('#terrain [data-act="farther"]');
+  await sleep(1500);
+  const far = await cam();
+  out.levels = [back, near, far].map((s) => ({ level: s.level, zoom: +s.camera.zoom.toFixed(2), pitch: +s.camera.pitch.toFixed(1) }));
+  checks.levelButtons = near.level === 0 && far.level === 2 && near.camera.zoom > back.camera.zoom && far.camera.zoom < back.camera.zoom && near.camera.pitch !== far.camera.pitch;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel({ deltaY: -120 });
+  await page.keyboard.up('Control');
+  await sleep(1200);
+  checks.ctrlWheelLevel = (await cam()).level === 1 && (await cam()).preview === 0;
+  if (!reduced) {
+    await sleep(3000);
+    await page.screenshot({ path: join(OUT, 'views-terrain-level.png') });
+  }
+  // level survives into the chase view
+  await page.click('[data-view="3d"]');
+  await sleep(500);
+  checks.levelShared = (await page.$eval('#chase [data-hud="level"]', (e) => e.textContent)) === 'Near';
+  await page.close();
+  return { shot: `views${reduced ? '-reduced' : ''}`, checks, ...out, errors };
+}

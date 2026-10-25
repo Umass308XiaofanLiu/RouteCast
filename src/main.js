@@ -255,6 +255,14 @@ function renderAll({ fit = false } = {}) {
       select(i, { fromChase: true });
     },
     onPreview: previewAt,
+    // shared camera level across both 3D views (views: begin)
+    onLevel: (l) => {
+      state.level = l;
+      terrain?.setLevel(l, { silent: true });
+    },
+    onStatus: announceView,
+    level: state.level ?? 1,
+    // (views: end)
     getFmt: () => fmt,
     reducedMotion,
   });
@@ -471,8 +479,44 @@ function applyDeparture(utc) {
   $('kpis').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// Shared trip/time state for the three views (2D / 3D chase / 3D terrain): state.sel is the
+// playback position, state.preview the previewed sample (null = at playback position) and
+// state.level the 3D camera level. Previews made in either 3D view land here, so the 2D map
+// keeps the dashed preview pin and every view shows "Previewing ahead +N min".
+let liveTimer = 0;
+let liveText = '';
+let liveLast = 0;
+function announceView(text) {
+  // throttled polite announcement of the 3D HUD state (at most one per 1.5 s, trailing)
+  liveText = text;
+  if (liveTimer) return;
+  const wait = Math.max(0, 1500 - (Date.now() - liveLast));
+  liveTimer = setTimeout(() => {
+    liveTimer = 0;
+    liveLast = Date.now();
+    const el = $('view-live');
+    if (el && el.textContent !== liveText) el.textContent = liveText;
+  }, wait);
+}
+function renderViewPreview() {
+  const box = $('view-preview');
+  if (!box || !state.model) return;
+  const i = state.preview;
+  if (i == null || i === state.sel) {
+    box.hidden = true;
+    return;
+  }
+  const { model, ev } = state;
+  const dt = Math.abs(ev.rows[i].t - ev.rows[state.sel].t) / 1000;
+  const dist = Math.abs(model.samples[i].distM - model.samples[state.sel].distM);
+  box.querySelector('[data-hud="state"]').textContent = `Previewing ${i > state.sel ? 'ahead: +' : 'behind: −'}${formatDuration(dt)} · ${fmt.dist(dist)}`;
+  box.hidden = state.view !== '2d';
+}
+
 function previewAt(i) {
   const { model, ev } = state;
+  state.preview = i == null || i === state.sel ? null : i;
+  renderViewPreview();
   if (i == null || i === state.sel) {
     mapView.setPreview(null);
     const row = ev.rows[state.sel];
@@ -488,9 +532,11 @@ function previewAt(i) {
 function select(i, { range, fromChase = false, fromTerrain = false } = {}) {
   const { model, ev } = state;
   state.sel = Math.max(0, Math.min(ev.rows.length - 1, i));
+  state.preview = null; // a new playback position ends any preview in every view
   if (!fromChase) chase?.setCurrent(state.sel);
   if (!fromTerrain) terrain?.setCurrent(state.sel); // terrain view
   mapView.setPreview(null);
+  renderViewPreview();
   const row = ev.rows[state.sel];
   const smp = model.samples[state.sel];
   $('scrub').value = String(state.sel);
@@ -712,19 +758,37 @@ async function openScenario(id) {
 }
 
 function setView(view) {
+  const prev = state.view;
   state.view = view;
   document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
   const is3d = view === '3d';
+  const motionOn = !reducedMotion() && !document.body.classList.contains('motion-off');
+  // short cross-fade of the entering view (instant with reduced motion / Animation off)
+  const fadeIn = (el) => {
+    el.classList.remove('view-enter');
+    void el.offsetWidth;
+    if (motionOn) el.classList.add('view-enter');
+  };
   // terrain view: hide 2D map, chase and layer controls; lazily create the MapLibre view
   const isTerrain = view === 'terrain';
   $('terrain').hidden = !isTerrain;
+  $('view-preview').hidden = true;
   if (isTerrain) {
+    // 2D → terrain: the MapLibre camera flies in from the 2D map's centre/zoom
+    let flyFrom = null;
+    if (prev === '2d' && mapView?.map) {
+      try {
+        const c = mapView.map.getCenter();
+        flyFrom = { center: [c.lng, c.lat], zoom: Math.max(1, mapView.map.getZoom() - 1) }; // Leaflet 256 px → MapLibre 512 px tiles
+      } catch { /* ignore */ }
+    }
     $('map').hidden = true;
     $('chase').hidden = true;
     document.querySelector('.map-toolbar [aria-label="Map layer"]').hidden = true;
     $('legend').hidden = true;
     chase?.show(false);
-    openTerrain();
+    fadeIn($('terrain'));
+    openTerrain({ flyFrom });
     return;
   }
   terrain?.show(false);
@@ -733,40 +797,61 @@ function setView(view) {
   $('chase').hidden = !is3d;
   document.querySelector('.map-toolbar [aria-label="Map layer"]').hidden = is3d;
   $('legend').hidden = is3d;
-  const el = is3d ? $('chase') : $('map');
-  el.classList.remove('view-enter');
-  void el.offsetWidth;
-  if (!reducedMotion()) el.classList.add('view-enter');
+  fadeIn(is3d ? $('chase') : $('map'));
   if (is3d) {
     chase?.setCurrent(state.sel);
+    chase?.setLevel(state.level ?? 1, { silent: true });
+    chase?.setPreviewIdx(state.preview ?? null);
     chase?.show(true);
     $('chase').querySelector('canvas').focus({ preventScroll: true });
   } else {
     chase?.show(false);
-    previewAt(null);
+    // keep a preview made in either 3D view: the 2D map shows its dashed pin and label
+    previewAt(state.preview ?? null);
     requestAnimationFrame(() => mapView?.invalidate());
   }
 }
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+$('view-preview').querySelector('[data-act="return"]').addEventListener('click', () => {
+  chase?.setPreviewIdx(null);
+  terrain?.setPreviewIdx(null);
+  previewAt(null);
+});
 
 // ---------- terrain view (begin) ----------
 const TERRAIN_FALLBACK = '3D terrain needs WebGL and online tiles — showing the lightweight 3D chase preview instead';
-function openTerrain() {
+function openTerrain({ flyFrom = null } = {}) {
   if (terrain) {
     if (state.model) {
       terrain.setTrip(state.model, state.ev);
       terrain.setCurrent(state.sel);
+      terrain.setLevel(state.level ?? 1, { silent: true });
+      terrain.setPreviewIdx(state.preview ?? null);
     }
-    terrain.show(true);
+    terrain.show(true, { flyFrom });
+    $('terrain').querySelector('.terrain-map')?.focus({ preventScroll: true });
     return;
   }
   if (terrainLoading) return;
   $('terrain-msg').hidden = true;
   terrainLoading = import('./ui/terrain3d.js')
-    .then((m) => m.createTerrainView($('terrain'), { onAdvance: (i) => { gpsUserMoved(); select(i, { fromTerrain: true }); }, getFmt: () => fmt, reducedMotion }))
+    .then((m) =>
+      m.createTerrainView($('terrain'), {
+        onAdvance: (i) => { gpsUserMoved(); select(i, { fromTerrain: true }); },
+        onPreview: previewAt,
+        onLevel: (l) => {
+          state.level = l;
+          chase?.setLevel(l, { silent: true });
+        },
+        onStatus: announceView,
+        level: state.level ?? 1,
+        getFmt: () => fmt,
+        reducedMotion,
+      })
+    )
     .then((t) => {
       terrain = t;
-      if (state.view === 'terrain') openTerrain();
+      if (state.view === 'terrain') openTerrain({ flyFrom });
     })
     .catch((err) => {
       console.warn('terrain view unavailable:', err?.message || err);

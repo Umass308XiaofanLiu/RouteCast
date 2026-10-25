@@ -9,6 +9,7 @@ import { rowConditions, COND_ORDER, COND_LABEL } from '../lib/conditions.js';
 import { COND_RING } from './condlayer.js';
 import { formatClock, formatDuration } from '../lib/time.js';
 import { createTerrainFx } from './terrainfx.js';
+import { previewLabel, previewStep, handleViewKey } from './chase3d.js';
 
 const LEVELS = [
   { name: 'Close', zoom: 14, pitch: 74, ahead: 350 },
@@ -75,24 +76,29 @@ function routeFeatures(model, ev) {
   return { type: 'FeatureCollection', features: feats };
 }
 
-export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion }) {
+const FLY_MS = 1800;
+
+export async function createTerrainView(root, { onAdvance, onPreview = () => {}, onLevel = () => {}, onStatus = () => {}, getFmt, reducedMotion, level: level0 = 1 }) {
   if (!hasWebGL()) throw new Error('WebGL unavailable');
   const motionOk = () => !reducedMotion() && !document.body.classList.contains('motion-off');
   const maplibregl = (await import('maplibre-gl')).default;
   await import('maplibre-gl/dist/maplibre-gl.css');
 
   root.innerHTML = `
-    <div class="terrain-map"></div>
+    <div class="terrain-map" tabindex="0" role="application" aria-roledescription="3D map" aria-label="3D terrain view of the planned route. Scroll, swipe or use arrow keys to look ahead or behind; pinch, Ctrl+scroll or plus/minus change the camera distance; Space plays or pauses."></div>
     <div class="chase-top">
       <span class="chase-tag">Simulated playback of the planned route · real terrain (AWS Terrain Tiles) · not GPS</span>
       <span class="chase-where" data-hud="where"></span>
+      <span class="chase-state terrain-state" data-hud="state"></span>
       <span class="terrain-note" data-hud="note">Loads online map + elevation tiles; scenario weather stays hand-set · sky, sun glow, rain/snow, fog, night and wind effects and hillshade light follow the represented sample (visual only, not used for glare)</span>
     </div>
     <div class="chase-ahead terrain-ahead" data-hud="ahead"></div>
     <div class="chase-controls" role="group" aria-label="3D terrain controls">
-      <button type="button" class="chip-btn" data-act="play" aria-pressed="false">Play</button>
-      <button type="button" class="chip-btn" data-act="return">Return to playback position</button>
-      <span class="chase-zoom"><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer">−</button><span data-hud="level">Near</span><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther">+</button></span>
+      <button type="button" class="chip-btn" data-act="play" aria-pressed="false" title="Play / pause (Space)">Play</button>
+      <button type="button" class="chip-btn" data-act="back" aria-label="Look behind" title="Look behind (← / ↓)">◀</button>
+      <button type="button" class="chip-btn" data-act="fwd" aria-label="Look ahead" title="Look ahead (→ / ↑)">▶</button>
+      <button type="button" class="chip-btn" data-act="return" disabled title="Return to playback position (Home / Esc)">Return to playback position</button>
+      <span class="chase-zoom" role="group" aria-label="Camera distance"><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther (−)" title="Camera farther (− key)">−</button><span data-hud="level" aria-label="Camera level">Near</span><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer (+)" title="Camera nearer (+ key)">+</button></span>
     </div>
     <p class="terrain-lost" data-hud="lost" role="status" hidden style="position:absolute;inset:auto 10px 50%;z-index:3;margin:0;padding:10px 12px;border-radius:10px;background:#fff4e6;color:#7a3d00;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.25)"></p>`;
   const hud = {
@@ -100,6 +106,8 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     ahead: root.querySelector('[data-hud="ahead"]'),
     level: root.querySelector('[data-hud="level"]'),
     play: root.querySelector('[data-act="play"]'),
+    ret: root.querySelector('[data-act="return"]'),
+    state: root.querySelector('[data-hud="state"]'),
     lost: root.querySelector('[data-hud="lost"]'),
     note: root.querySelector('[data-hud="note"]'),
   };
@@ -134,6 +142,9 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     zoom: 10,
     pitch: 60,
     maxPitch: 85,
+    // the camera is driven by the shared playback/preview state: wheel/swipe preview ahead or
+    // behind and pinch / Ctrl+wheel / +/− change the camera level (handled below), as in the chase
+    interactive: false,
     attributionControl: { compact: true },
     // reduced motion / motion-off: no tile/label cross-fades
     fadeDuration: motionOk() ? 300 : 0,
@@ -195,7 +206,10 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
   let model = null;
   let ev = null;
   let cur = 0;
-  let level = 1;
+  let level = Math.max(0, Math.min(LEVELS.length - 1, level0));
+  let preview = 0; // look-ahead offset in samples (as in the chase view)
+  let lastStatus = '';
+  let flying = false;
   let playing = false;
   let visible = false;
   let raf = 0;
@@ -205,6 +219,12 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
   let stepTimer = 0;
   let destroyed = false;
   const maxIdx = () => (model ? model.samples.length - 1 : 0);
+  const displayIdx = () => Math.max(0, Math.min(maxIdx(), Math.round(cur + preview)));
+  // preview marker (dashed ring) at the previewed sample; the car stays at the playback position
+  const ghostEl = document.createElement('div');
+  ghostEl.className = 'terrain-preview-pin';
+  ghostEl.setAttribute('aria-hidden', 'true');
+  const ghost = new maplibregl.Marker({ element: ghostEl }).setLngLat([-72.52, 42.37]);
 
   function safeFollow(instant) {
     try {
@@ -236,14 +256,23 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     if (cur >= maxIdx()) stopPlayback(false);
   }
 
-  function follow(instant) {
-    if (!model || destroyed || contextLost) return;
-    const i = Math.round(cur);
+  function cameraFor(i) {
     const smp = model.samples[i];
     const L = LEVELS[level];
     const ahead = pointAtDistance(model.route, Math.min(model.route.totalDistM, smp.distM + L.ahead));
-    car.setLngLat([smp.lon, smp.lat]).setRotation(smp.heading);
-    const opts = { center: [ahead.lon, ahead.lat], bearing: smp.heading, pitch: L.pitch, zoom: L.zoom };
+    return { center: [ahead.lon, ahead.lat], bearing: smp.heading, pitch: L.pitch, zoom: L.zoom };
+  }
+
+  function follow(instant) {
+    if (!model || destroyed || contextLost) return;
+    const c = model.samples[Math.round(cur)];
+    car.setLngLat([c.lon, c.lat]).setRotation(c.heading);
+    const i = displayIdx();
+    const smp = model.samples[i];
+    if (i !== Math.round(cur)) ghost.setLngLat([smp.lon, smp.lat]).addTo(map);
+    else ghost.remove();
+    const opts = cameraFor(i);
+    flying = false;
     if (instant || !motionOk()) map.jumpTo(opts);
     else map.easeTo({ ...opts, duration: 600 });
     const az = ev.rows[i]?.sun?.azimuth;
@@ -258,7 +287,7 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
   function updateHud() {
     if (!model) return;
     const fmt = getFmt();
-    const i = Math.round(cur);
+    const i = displayIdx();
     const row = ev.rows[i];
     const smp = model.samples[i];
     const tz = row.timezone || model.originTz;
@@ -276,10 +305,22 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     }
     hud.ahead.textContent = ahead.length ? `Ahead (projected): ${ahead.join(' · ')}` : 'No new projected conditions ahead';
     hud.level.textContent = LEVELS[level].name;
+    const st = previewLabel(model, ev, Math.round(cur), i, fmt, playing);
+    hud.state.textContent = st.text;
+    hud.ret.disabled = !st.previewing;
+    if (st.text !== lastStatus && visible) onStatus((lastStatus = st.text));
+  }
+
+  function setPreview(p, { notify = true } = {}) {
+    if (!model || destroyed) return;
+    if (playing) stopPlayback(true);
+    preview = Math.max(-cur, Math.min(maxIdx() - cur, p));
+    if (notify) onPreview(displayIdx() === Math.round(cur) ? null : displayIdx());
+    if (visible) safeFollow(false);
   }
 
   function updateButtons() {
-    hud.play.textContent = playing ? 'Pause' : 'Play';
+    hud.play.textContent = playing ? 'Pause' : model && cur >= maxIdx() ? 'Replay' : 'Play';
     hud.play.setAttribute('aria-pressed', String(playing));
   }
 
@@ -324,25 +365,54 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     setCurrent(i) {
       if (playing || destroyed) return;
       cur = Math.max(0, Math.min(maxIdx(), i));
+      preview = 0;
       if (visible) safeFollow(false);
     },
-    show(on) {
+    /** Restore a shared preview (absolute sample index, or null) without changing playback. */
+    setPreviewIdx(idx) {
+      if (!model || playing || destroyed) return;
+      preview = idx == null ? 0 : Math.max(-cur, Math.min(maxIdx() - cur, idx - Math.round(cur)));
+      if (visible) safeFollow(true);
+    },
+    /**
+     * Show / hide. `flyFrom` ({ center: [lon, lat], zoom }) animates the camera from the 2D map's
+     * view to the chase-like camera (MapLibre flyTo); instant with reduced motion / Animation off.
+     */
+    show(on, { flyFrom = null } = {}) {
       if (destroyed) return;
       visible = on;
       if (!on) {
-        // hidden: stop timers and any in-flight camera ease so nothing keeps re-rendering
-        stopPlayback(false);
+        // hidden: stop timers and any in-flight camera ease so nothing keeps re-rendering;
+        // a running playback hands its reached position to the shared state
+        stopPlayback(true);
+        flying = false;
         fx.show(false);
       } else {
         fx.show(true);
         try { map.resize(); } catch (err) { logError(err); }
         updateHud();
         safeFollow(true);
+        if (flyFrom && model && motionOk() && !contextLost) {
+          try {
+            const target = cameraFor(displayIdx());
+            map.jumpTo({ center: flyFrom.center, zoom: flyFrom.zoom, pitch: 0, bearing: 0 });
+            flying = true;
+            map.flyTo({ ...target, duration: FLY_MS, curve: 1.3 });
+            map.once('moveend', () => { flying = false; });
+          } catch (err) {
+            logError(err);
+            safeFollow(true);
+          }
+        }
       }
     },
     togglePlay() {
       if (!model || destroyed || contextLost) return;
       if (playing) return stopPlayback(true);
+      if (preview !== 0) {
+        preview = 0;
+        onPreview(null);
+      }
       if (cur >= maxIdx()) cur = 0;
       playing = true;
       updateButtons();
@@ -351,12 +421,23 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
       else stepTimer ||= setInterval(step, 600);
     },
     returnToCurrent() {
+      preview = 0;
+      onPreview(null);
       safeFollow(false);
     },
-    setLevel(l) {
-      level = Math.max(0, Math.min(LEVELS.length - 1, l));
+    nudge(dir) {
+      setPreview(preview + dir * previewStep(level) * 3);
+    },
+    setLevel(l, { silent = false } = {}) {
+      const nl = Math.max(0, Math.min(LEVELS.length - 1, l));
+      const changed = nl !== level;
+      level = nl;
       if (model) updateHud();
-      safeFollow(false);
+      if (changed && !silent) onLevel(level);
+      if (visible) safeFollow(false);
+    },
+    get level() {
+      return level;
     },
     /** Release the map, marker, listeners and timers (e.g. before re-creating the view). */
     destroy() {
@@ -367,11 +448,17 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
       window.removeEventListener('resize', onResize);
       try { fx.destroy(); } catch { /* ignore */ }
       try { car.remove(); } catch { /* ignore */ }
+      try { ghost.remove(); } catch { /* ignore */ }
       try { map.remove(); } catch { /* ignore */ }
       root.innerHTML = '';
     },
     get state() {
-      return { cur: Math.round(cur), level, playing, visible, contextLost, errors: errorCount, destroyed, timers: Number(!!raf) + Number(!!stepTimer), fx: fx.state };
+      let camera = null;
+      try {
+        const c = map.getCenter();
+        camera = { lon: c.lng, lat: c.lat, zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
+      } catch { /* ignore */ }
+      return { cur: Math.round(cur), preview: displayIdx() - Math.round(cur), level, playing, flying, camera, visible, contextLost, errors: errorCount, destroyed, timers: Number(!!raf) + Number(!!stepTimer), fx: fx.state };
     },
     map,
   };
@@ -383,6 +470,69 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
   root.querySelector('[data-act="return"]').addEventListener('click', () => api.returnToCurrent());
   root.querySelector('[data-act="nearer"]').addEventListener('click', () => api.setLevel(level - 1));
   root.querySelector('[data-act="farther"]').addEventListener('click', () => api.setLevel(level + 1));
+  root.querySelector('[data-act="back"]').addEventListener('click', () => setPreview(preview - previewStep(level) * 5));
+  root.querySelector('[data-act="fwd"]').addEventListener('click', () => setPreview(preview + previewStep(level) * 5));
+
+  // Input parity with the chase view: wheel / one-finger swipe = look ahead/behind; pinch,
+  // Ctrl+wheel (trackpad pinch) and +/− = camera level; keys as in the chase view.
+  const surface = root.querySelector('.terrain-map');
+  let zoomAcc = 0;
+  surface.addEventListener('wheel', (e) => {
+    if (!model) return;
+    e.preventDefault();
+    const d = e.deltaY || e.deltaX;
+    if (e.ctrlKey) {
+      zoomAcc += d;
+      if (Math.abs(zoomAcc) >= 40) {
+        api.setLevel(level + Math.sign(zoomAcc));
+        zoomAcc = 0;
+      }
+      return;
+    }
+    setPreview(preview + Math.sign(d) * previewStep(level) * Math.max(1, Math.min(4, Math.abs(d) / 60)));
+  }, { passive: false });
+  const pointers = new Map();
+  let drag = null;
+  let pinch = null;
+  const pinchDist = () => {
+    const [a, b] = [...pointers.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+  };
+  surface.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { surface.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    if (pointers.size === 1) drag = { x: e.clientX, y: e.clientY, p: preview };
+    else if (pointers.size === 2) {
+      drag = null;
+      pinch = { d: pinchDist() };
+    }
+  });
+  surface.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pointers.size === 2) {
+      const r = pinchDist() / pinch.d;
+      if (r > 1.3 || r < 0.77) {
+        api.setLevel(level + (r > 1 ? -1 : 1));
+        pinch.d = pinchDist();
+      }
+    } else if (drag) {
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      const along = Math.abs(dx) > Math.abs(dy) ? -dx : -dy; // swipe left / drag up = look ahead
+      if (Math.abs(along) > 4) setPreview(drag.p + (along / 12) * previewStep(level));
+    }
+  });
+  const endPointer = (e) => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 0) drag = null;
+  };
+  surface.addEventListener('pointerup', endPointer);
+  surface.addEventListener('pointercancel', endPointer);
+  surface.addEventListener('keydown', (e) => handleViewKey(e, api));
   window.addEventListener('resize', onResize);
+  // QA hook for the manual visual check (tests/e2e/terrain-visual.mjs): only with ?qa in the URL
+  if (/[?&]qa\b/.test(location.search)) window.__gpTerrain = api;
   return api;
 }

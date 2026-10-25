@@ -13,6 +13,37 @@ const LEVELS = [
   { name: 'Far', back: 520, height: 230, ahead: 11000 },
   { name: 'Wide', back: 1100, height: 520, ahead: 22000 },
 ];
+// Shared by both 3D views (chase + terrain) so labels, steps and shortcuts stay identical.
+export const LEVEL_NAMES = ['Close', 'Near', 'Far', 'Wide'];
+/** Look-ahead step in samples (≈1 km each) per camera level. */
+export const previewStep = (level) => [0.6, 1, 2, 4][level] ?? 1;
+
+/** HUD state line: "Previewing ahead: +N min · D" (same wording in all three views) or the playback state. */
+export function previewLabel(model, ev, curIdx, dispIdx, fmt, playing = false) {
+  const off = dispIdx - curIdx;
+  if (!model || off === 0) return { text: playing ? 'Playing back the planned route' : 'At playback position', previewing: false };
+  const dt = (ev.rows[dispIdx].t - ev.rows[curIdx].t) / 1000;
+  const dist = Math.abs(model.samples[dispIdx].distM - model.samples[curIdx].distM);
+  return { text: `Previewing ${off > 0 ? 'ahead' : 'behind'}: ${off > 0 ? '+' : '−'}${formatDuration(Math.abs(dt))} · ${fmt.dist(dist)}`, previewing: true };
+}
+
+/**
+ * Keyboard shortcuts shared by both 3D views. `api` needs nudge(dir), returnToCurrent(),
+ * setLevel(), togglePlay() and a `level` getter. Returns true when the key was handled.
+ */
+export function handleViewKey(e, api) {
+  if (e.altKey || e.metaKey || e.ctrlKey) return false;
+  if (e.key === 'ArrowUp' || e.key === 'ArrowRight') api.nudge(1);
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') api.nudge(-1);
+  else if (e.key === 'Home' || e.key === 'Escape') api.returnToCurrent();
+  else if (e.key === '+' || e.key === '=') api.setLevel(api.level - 1);
+  else if (e.key === '-' || e.key === '_') api.setLevel(api.level + 1);
+  else if (e.key === ' ' || e.key === 'k' || e.key === 'K') api.togglePlay();
+  else return false;
+  e.preventDefault();
+  return true;
+}
+
 const COND_COLOR = { glare: '#f08c00', 'sun-aligned': '#ced4da', rain: '#4dabf7', snow: '#da77f2', fog: '#adb5bd', wind: '#38d9a9', jam: '#f06595', night: '#748ffc' };
 const M_PER_DEG_LAT = 110540;
 const M_PER_DEG_LON = 111320;
@@ -44,7 +75,7 @@ function skyColors(alt) {
   return ['#050816', '#10162e'];
 }
 
-export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion }) {
+export function createChase(root, { onAdvance, onPreview, onLevel = () => {}, onStatus = () => {}, getFmt, reducedMotion, level: level0 = 1 }) {
   const canvas = root.querySelector('canvas');
   const ctx = canvas.getContext('2d');
   const hud = {
@@ -59,8 +90,9 @@ export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion 
   let ev = null;
   let cur = 0; // current (playback) sample index, fractional
   let preview = 0; // look-ahead offset in samples, fractional
-  let level = 1;
-  let cam = { ...LEVELS[1] };
+  let level = Math.max(0, Math.min(LEVELS.length - 1, level0));
+  let cam = { ...LEVELS[level] };
+  let lastStatus = '';
   let playing = false;
   let visible = false;
   let raf = 0;
@@ -487,16 +519,10 @@ export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion 
     const tz = row.timezone || model.originTz;
     const smp = model.samples[i];
     hud.where.textContent = root.clientWidth < 520 ? `${formatClock(row.t, tz, { weekday: false })} · +${formatDuration((row.t - ev.departureUtc) / 1000, { compact: true })} · ${compass(smp.heading)}` : `${formatClock(row.t, tz)} · ${formatDuration((row.t - ev.departureUtc) / 1000)} into the trip · heading ${compass(smp.heading)}`;
-    const off = Math.round(displayIdx()) - Math.round(cur);
-    if (off === 0) {
-      hud.state.textContent = playing ? 'Playing back the planned route' : 'At playback position';
-      hud.ret.disabled = true;
-    } else {
-      const dt = (row.t - ev.rows[Math.round(cur)].t) / 60000;
-      const dist = Math.abs(smp.distM - model.samples[Math.round(cur)].distM);
-      hud.state.textContent = `Previewing ${off > 0 ? 'ahead' : 'behind'}: ${off > 0 ? '+' : '−'}${formatDuration(Math.abs(dt) * 60)} · ${fmt.dist(dist)}`;
-      hud.ret.disabled = false;
-    }
+    const st = previewLabel(model, ev, Math.round(cur), i, fmt, playing);
+    hud.state.textContent = st.text;
+    hud.ret.disabled = !st.previewing;
+    if (st.text !== lastStatus && visible) onStatus((lastStatus = st.text));
     const conds = rowConditions(row);
     const ahead = [];
     const seen = new Set(conds);
@@ -548,16 +574,7 @@ export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion 
   };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
-  canvas.addEventListener('keydown', (e) => {
-    const step = [0.6, 1, 2, 4][level] * 3;
-    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') setPreview(preview + step);
-    else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') setPreview(preview - step);
-    else if (e.key === 'Home' || e.key === 'Escape') api.returnToCurrent();
-    else if (e.key === '+' || e.key === '=') api.setLevel(level - 1);
-    else if (e.key === '-') api.setLevel(level + 1);
-    else return;
-    e.preventDefault();
-  });
+  canvas.addEventListener('keydown', (e) => handleViewKey(e, api));
   root.querySelectorAll('[data-act]').forEach((b) =>
     b.addEventListener('click', () => {
       const act = b.dataset.act;
@@ -565,8 +582,8 @@ export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion 
       else if (act === 'return') api.returnToCurrent();
       else if (act === 'nearer') api.setLevel(level - 1);
       else if (act === 'farther') api.setLevel(level + 1);
-      else if (act === 'back') setPreview(preview - [0.6, 1, 2, 4][level] * 5);
-      else if (act === 'fwd') setPreview(preview + [0.6, 1, 2, 4][level] * 5);
+      else if (act === 'back') setPreview(preview - previewStep(level) * 5);
+      else if (act === 'fwd') setPreview(preview + previewStep(level) * 5);
     })
   );
   new ResizeObserver(() => kick()).observe(root);
@@ -590,6 +607,8 @@ export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion 
     show(on) {
       visible = on;
       if (!on) {
+        // hiding during playback hands the reached position to the shared state
+        if (playing && model) onAdvance(Math.round(cur));
         playing = false;
         updateButtons();
         if (raf) cancelAnimationFrame(raf);
@@ -616,11 +635,28 @@ export function createChase(root, { onAdvance, onPreview, getFmt, reducedMotion 
       updateHud();
       kick();
     },
-    setLevel(l) {
-      level = Math.max(0, Math.min(LEVELS.length - 1, l));
-      if (!motionOk()) cam = { ...LEVELS[level] };
-      updateHud();
+    /** Keyboard look-ahead step (3 × the level's step) in direction `dir` (+1 ahead, −1 behind). */
+    nudge(dir) {
+      if (model) setPreview(preview + dir * previewStep(level) * 3);
+    },
+    /** Restore a shared preview (absolute sample index, or null) without changing playback. */
+    setPreviewIdx(idx) {
+      if (!model || playing) return;
+      preview = idx == null ? 0 : Math.max(-cur, Math.min(maxIdx() - cur, idx - Math.round(cur)));
+      if (visible) updateHud();
       kick();
+    },
+    setLevel(l, { silent = false } = {}) {
+      const nl = Math.max(0, Math.min(LEVELS.length - 1, l));
+      const changed = nl !== level;
+      level = nl;
+      if (!motionOk()) cam = { ...LEVELS[level] };
+      if (model) updateHud();
+      if (changed && !silent) onLevel(level);
+      kick();
+    },
+    get level() {
+      return level;
     },
     get state() {
       return { cur: Math.round(cur), preview: Math.round(displayIdx()) - Math.round(cur), level, playing, visible };

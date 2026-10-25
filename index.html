@@ -7,8 +7,8 @@
     <meta name="theme-color" content="#0f1b33" />
     <title>GlarePilot — weather &amp; sun glare where and when you'll drive</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <script type="module" crossorigin src="./assets/index-C9lmKh_9.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-C9dfpdKS.css">
+    <script type="module" crossorigin src="./assets/index-BjvxKG_S.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-qMMGRmq7.css">
   </head>
   <body>
     <a class="skip-link" href="#results">Skip to results</a>
@@ -117,8 +117,32 @@
                 </select>
               </div>
             </div>
-            <p class="assume-note">No live or predicted traffic source is connected. This is your own assumption; every later point's arrival time, forecast hour and sun angle are recomputed with it.</p>
+            <p class="assume-note">This is your own assumption, not traffic data; every later point's arrival time, forecast hour and sun angle are recomputed with it.</p>
           </fieldset>
+          <details class="traffic-cfg" id="traffic-cfg" hidden>
+            <summary>Traffic-aware routing (needs your own API key)</summary>
+            <p class="traffic-experimental" id="traffic-experimental">Experimental — not verified against real provider responses</p>
+            <div class="row two">
+              <div class="field">
+                <label for="traffic-provider">Provider</label>
+                <select id="traffic-provider">
+                  <option value="none" selected>None (free-flow)</option>
+                  <option value="tomtom">TomTom</option>
+                  <option value="here">HERE</option>
+                  <option value="mapbox">Mapbox</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="traffic-key">API key / token</label>
+                <input id="traffic-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your own key" />
+              </div>
+            </div>
+            <div class="traffic-row">
+              <label class="check"><input type="checkbox" id="traffic-remember" /> Remember on this device</label>
+              <button type="button" id="traffic-clear" class="ghost small">Clear key</button>
+            </div>
+            <p class="assume-note" id="traffic-note">The key is sent only to the chosen provider, directly from your browser. It is kept in memory unless you tick “Remember on this device”. Departures more than 30 min ahead use the provider's predictive (historical/typical) traffic; near-now departures use live traffic. Any provider failure falls back to free-flow routing with a warning. Your delay assumption above is still added on top.</p>
+          </details>
           <div id="form-error" class="alert" role="alert" hidden></div>
           <button type="submit" id="plan" class="primary">
             <span class="btn-label">See my drive</span>
@@ -129,6 +153,7 @@
 
         <section id="advice-card" class="card advice-card" aria-labelledby="advice-title" hidden>
           <h2 class="card-title" id="advice-title">What to expect &amp; what to do</h2>
+          <div id="overlay-notes" class="overlay-notes" aria-live="polite"></div>
           <ol id="advice" class="advice"></ol>
           <p class="fineprint">Guidance comes from a transparent rules engine using the forecast and sun geometry shown here. It is a planning aid, not a safety guarantee — follow road signs, official alerts and your own judgment.</p>
         </section>
@@ -196,6 +221,8 @@
               <div class="seg" role="group" aria-label="View">
                 <button type="button" class="seg-btn" data-view="2d" aria-pressed="true">2D overview</button>
                 <button type="button" class="seg-btn" data-view="3d" aria-pressed="false">3D chase preview</button>
+                <!-- terrain view (MapLibre, lazy) -->
+                <button type="button" class="seg-btn" data-view="terrain" aria-pressed="false">3D terrain</button>
               </div>
               <div class="seg" role="group" aria-label="Map layer">
                 <button type="button" class="seg-btn" data-layer="glare" aria-pressed="true">Sun glare</button>
@@ -212,16 +239,30 @@
                   <span class="chase-tag">Simulated playback of the planned route · not GPS</span>
                   <span class="chase-where" data-hud="where"></span>
                 </div>
-                <div class="chase-state" data-hud="state" aria-live="polite"></div>
+                <div class="chase-gps" data-hud="gps" hidden></div>
+                <div class="chase-state" data-hud="state"></div>
                 <div class="chase-ahead" data-hud="ahead"></div>
                 <div class="chase-controls" role="group" aria-label="3D preview controls">
-                  <button type="button" class="chip-btn" data-act="play" aria-pressed="false">Play</button>
-                  <button type="button" class="chip-btn" data-act="back" aria-label="Look behind">◀</button>
-                  <button type="button" class="chip-btn" data-act="fwd" aria-label="Look ahead">▶</button>
-                  <button type="button" class="chip-btn" data-act="return" disabled>Return to playback position</button>
-                  <span class="chase-zoom"><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer">−</button><span data-hud="level">Near</span><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther">+</button></span>
+                  <button type="button" class="chip-btn" data-act="play" aria-pressed="false" title="Play / pause (Space)">Play</button>
+                  <button type="button" class="chip-btn" data-act="back" aria-label="Look behind" title="Look behind (← / ↓)">◀</button>
+                  <button type="button" class="chip-btn" data-act="fwd" aria-label="Look ahead" title="Look ahead (→ / ↑)">▶</button>
+                  <button type="button" class="chip-btn" data-act="return" disabled title="Return to playback position (Home / Esc)">Return to playback position</button>
+                  <span class="chase-zoom" role="group" aria-label="Camera distance"><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther (−)" title="Camera farther (− key)">−</button><span data-hud="level" aria-label="Camera level">Near</span><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer (+)" title="Camera nearer (+ key)">+</button></span>
                 </div>
               </div>
+              <!-- terrain view (MapLibre, lazy): filled by src/ui/terrain3d.js -->
+              <!-- views: 2D label for a preview made in a 3D view; throttled polite HUD announcements -->
+              <div id="view-preview" class="view-preview" hidden><span data-hud="state"></span><button type="button" class="chip-btn" data-act="return">Return to playback position</button></div>
+              <div id="view-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+              <div id="terrain" class="terrain" role="region" aria-label="3D terrain view of the planned route (simulated playback, not GPS)" hidden></div>
+            </div>
+            <p id="terrain-msg" class="terrain-msg" role="status" hidden></p>
+            <div class="gps-bar" id="gps-bar">
+              <button type="button" class="chip-btn" id="gps-start">Use my location (optional)</button>
+              <button type="button" class="chip-btn" id="gps-return" hidden>Return to my location</button>
+              <button type="button" class="chip-btn" id="gps-stop" hidden>Stop</button>
+              <span class="gps-status" id="gps-status" role="status" aria-live="polite"></span>
+              <span class="gps-note">Off by default. Your location stays in this tab: never stored, logged or sent anywhere.</span>
             </div>
             <div class="cond-bar">
               <div id="cond-legend" class="cond-legend" aria-label="Condition icon legend"></div>

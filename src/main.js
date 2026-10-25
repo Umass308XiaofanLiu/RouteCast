@@ -8,7 +8,7 @@ import { buildAdvice } from './lib/advice.js';
 import { forecastHorizonEnd } from './lib/providers.js';
 import { parseLocalInput, toLocalInput, zonedParts, zonedWallTimeToUtc, formatClock, formatDuration, tzAbbrev } from './lib/time.js';
 import { describeCode } from './lib/weather.js';
-import { compass } from './lib/geo.js';
+import { compass, nearestSample } from './lib/geo.js';
 import { makeFormatter } from './lib/units.js';
 import { PRESETS, PLACES } from './lib/presets.js';
 import { createCombobox } from './ui/combobox.js';
@@ -237,11 +237,14 @@ let terrainLoading = null;
 
 function renderAll({ fit = false } = {}) {
   const { model, ev } = state;
-  mapView ??= createMap($('map'), { onPick: select });
-  timeline ??= createTimeline($('timeline'), { onPick: select });
-  condLayer ??= createConditionLayer(mapView.map, { onPick: (i, range) => select(i, { range }) });
+  mapView ??= createMap($('map'), { onPick: (i) => userSelect(i) });
+  timeline ??= createTimeline($('timeline'), { onPick: (i) => userSelect(i) });
+  condLayer ??= createConditionLayer(mapView.map, { onPick: (i, range) => userSelect(i, { range }) });
   chase ??= createChase($('chase'), {
-    onAdvance: (i) => select(i, { fromChase: true }),
+    onAdvance: (i) => {
+      gpsUserMoved();
+      select(i, { fromChase: true });
+    },
     onPreview: previewAt,
     getFmt: () => fmt,
     reducedMotion,
@@ -380,7 +383,7 @@ function focusRec(i) {
   state.activeRec = i;
   document.querySelectorAll('.rec').forEach((li) => li.classList.toggle('active', Number(li.dataset.i) === i));
   mapView.highlight(state.model, r.range);
-  if (r.focus != null) select(r.focus, { range: r.range });
+  if (r.focus != null) userSelect(r.focus, { range: r.range });
   else timeline.render({ range: null });
   if (window.matchMedia('(max-width: 1100px)').matches) $('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -505,7 +508,7 @@ $('trip-form').addEventListener('submit', async (e) => {
   }
 });
 $('retry').addEventListener('click', () => state.lastRequest && plan(state.lastRequest));
-$('scrub').addEventListener('input', (e) => select(Number(e.target.value)));
+$('scrub').addEventListener('input', (e) => userSelect(Number(e.target.value)));
 document.querySelectorAll('[data-layer]').forEach((b) =>
   b.addEventListener('click', () => {
     state.layer = b.dataset.layer;
@@ -680,7 +683,7 @@ function openTerrain() {
   if (terrainLoading) return;
   $('terrain-msg').hidden = true;
   terrainLoading = import('./ui/terrain3d.js')
-    .then((m) => m.createTerrainView($('terrain'), { onAdvance: (i) => select(i, { fromTerrain: true }), getFmt: () => fmt, reducedMotion }))
+    .then((m) => m.createTerrainView($('terrain'), { onAdvance: (i) => { gpsUserMoved(); select(i, { fromTerrain: true }); }, getFmt: () => fmt, reducedMotion }))
     .then((t) => {
       terrain = t;
       if (state.view === 'terrain') openTerrain();
@@ -707,6 +710,129 @@ function setMotion(on) {
 }
 $('motion').addEventListener('click', () => setMotion(document.body.classList.contains('motion-off')));
 setMotion(!reducedMotion());
+
+// ---------- optional "follow my location" (GPS) ----------
+// Off by default; starts only on an explicit click. Fixes are snapped to the nearest planned-route
+// sample in memory and then discarded: coordinates are never stored, logged or sent anywhere.
+const GPS_OFF_ROUTE_M = 2000;
+const GPS_MAX_ACCURACY_M = 1500; // coarser fixes (e.g. IP/Wi-Fi only) are not snapped to the route
+const GPS_FOLLOW_LABEL = "Following your location (GPS) — conditions are still the PLANNED forecast for this trip's timeline";
+const GPS_CHASE_TAG = 'Simulated playback of the planned route · not GPS';
+let gpsWatch = null;
+// In-memory only: the route sample index matched to the latest fix (no coordinates kept).
+const gps = { idx: null, paused: false };
+
+/** A user-driven move (scrub, map/timeline/icon pick, advice, playback) pauses GPS following. */
+function gpsUserMoved() {
+  if (gpsWatch == null || gps.idx == null || gps.paused) return;
+  gps.paused = true;
+  gpsFollowing(false);
+  $('gps-return').hidden = false;
+  gpsStatus('GPS following paused while you explore the plan — “Return to my location” resumes it.');
+}
+function userSelect(i, opts) {
+  gpsUserMoved();
+  select(i, opts);
+}
+function gpsAcc(m) {
+  return m == null || !(m > 0) ? '' : ` · accuracy ±${fmt.dist(m)}`;
+}
+
+function gpsStatus(msg, warn = false) {
+  const el = $('gps-status');
+  el.textContent = msg;
+  el.classList.toggle('warn', warn);
+}
+function gpsFollowing(on) {
+  const hud = document.querySelector('[data-hud="gps"]');
+  hud.hidden = !on;
+  hud.textContent = on ? GPS_FOLLOW_LABEL : '';
+  document.querySelector('.chase-tag').textContent = on ? 'Snapped to your GPS position on the planned route' : GPS_CHASE_TAG;
+}
+function gpsStop(msg = '') {
+  if (gpsWatch != null) navigator.geolocation.clearWatch(gpsWatch);
+  gpsWatch = null;
+  gps.idx = null;
+  gps.paused = false;
+  $('gps-start').hidden = false;
+  $('gps-stop').hidden = true;
+  $('gps-return').hidden = true;
+  gpsFollowing(false);
+  gpsStatus(msg, Boolean(msg));
+}
+function gpsOnFix(pos) {
+  const { model, ev } = state;
+  if (!model || !ev) {
+    gpsFollowing(false);
+    gpsStatus('Location received — plan or open a trip to follow it on the route.');
+    return;
+  }
+  const acc = pos.coords.accuracy;
+  const at = new Date(pos.timestamp || Date.now()).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  if (acc != null && acc > GPS_MAX_ACCURACY_M) {
+    gps.idx = null;
+    gpsFollowing(false);
+    gpsStatus(`Location too imprecise to place you on the route${gpsAcc(acc)} (fix ${at}) — position unchanged`, true);
+    return;
+  }
+  const hit = nearestSample(model.samples, pos.coords.latitude, pos.coords.longitude);
+  if (!hit) return;
+  if (hit.distM > GPS_OFF_ROUTE_M) {
+    gps.idx = null;
+    gpsFollowing(false);
+    gpsStatus(`You are off this planned route (${(hit.distM / 1609.344).toFixed(hit.distM < 160934 ? 1 : 0)} mi away${gpsAcc(acc)}) — playback position unchanged`, true);
+    return;
+  }
+  gps.idx = hit.index;
+  if (gps.paused) {
+    gpsStatus(`GPS following paused while you explore the plan — latest fix ${at}${gpsAcc(acc)}. “Return to my location” resumes it.`);
+    return;
+  }
+  gpsFollowing(true);
+  gpsStatus(`${GPS_FOLLOW_LABEL} · fix ${at}${gpsAcc(acc)} · ${fmt.dist(hit.distM)} from the route line`);
+  if (hit.index !== state.sel) select(hit.index);
+}
+function gpsOnError(err) {
+  const msg =
+    err.code === 1
+      ? 'Location permission denied — the planned-route playback still works'
+      : err.code === 3
+        ? 'Location timed out — the planned-route playback still works'
+        : 'Location unavailable — the planned-route playback still works';
+  if (err.code === 1) gpsStop(msg);
+  else {
+    // Keep watching after a transient failure; the browser may deliver a fix later.
+    gpsFollowing(false);
+    gpsStatus(msg, true);
+  }
+}
+$('gps-start').addEventListener('click', () => {
+  if (!window.isSecureContext || !('geolocation' in navigator)) {
+    gpsStatus('Location needs HTTPS and browser support', true);
+    return;
+  }
+  if (gpsWatch != null) return;
+  gpsStatus('Waiting for your location…');
+  $('gps-start').hidden = true;
+  $('gps-stop').hidden = false;
+  try {
+    gpsWatch = navigator.geolocation.watchPosition(gpsOnFix, gpsOnError, { enableHighAccuracy: true, maximumAge: 10_000, timeout: 15_000 });
+  } catch {
+    gpsStop('Location needs HTTPS and browser support');
+  }
+});
+$('gps-stop').addEventListener('click', () => gpsStop());
+$('gps-return').addEventListener('click', () => {
+  gps.paused = false;
+  $('gps-return').hidden = true;
+  if (gps.idx == null) {
+    gpsStatus('Waiting for an on-route location fix…');
+    return;
+  }
+  gpsFollowing(true);
+  gpsStatus(GPS_FOLLOW_LABEL);
+  select(gps.idx);
+});
 
 // ---------- presets & snapshots ----------
 function renderPresets() {

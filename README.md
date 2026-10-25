@@ -97,6 +97,17 @@ A third map view, **3D terrain**, drapes the planned route (colored by the proje
 - The hillshade light direction follows the represented point's sun azimuth. This is visual shading only; it is **not** used for the glare model.
 - Needs WebGL and online map + elevation tiles (also in the manual demo scenarios, whose weather stays hand-set). MapLibre is loaded on demand only when this view is opened. If WebGL is unavailable or the map cannot load, the app shows a short notice and switches to the lightweight 3D chase preview. `?view=terrain` opens this view directly.
 
+## Optional: follow my location
+
+Branch feature (not in the frozen contest build). Click **Use my location (optional)** to start; nothing happens before that click.
+
+- Uses the browser Geolocation API (HTTPS only) with explicit permission. Denied / unavailable / timed-out locations show a message, and the planned-route playback keeps working.
+- Each fix is matched to the nearest 1 km sample of the planned route. The status line shows the fix time, the reported accuracy (±) and the distance from the route line. Fixes coarser than ±1.5 km are not snapped; fixes more than 2 km from the route report "off this planned route" and leave the position unchanged.
+- Scrubbing, clicking the map/timeline/advice or playing the 3D preview **pauses** following, so you can explore the plan; **Return to my location** resumes it. **Stop** ends the watch.
+- The weather shown is still the **planned forecast** for this trip's timeline, not live conditions at your position; the clock is not re-timed to your actual progress.
+- Coordinates stay in memory in this tab: they are never stored, logged or sent anywhere (no API request carries them).
+- Tested with Chrome's emulated geolocation (near-route, off-route, imprecise, denied, pause/return). **Not yet verified on a real device's GPS.**
+
 ## Data you see and where it comes from
 
 | What you see | Kind | Source |

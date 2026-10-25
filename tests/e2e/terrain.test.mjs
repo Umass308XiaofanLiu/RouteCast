@@ -49,3 +49,73 @@ test('3D terrain view renders a MapLibre canvas or falls back to the 3D chase pr
   assert.deepEqual(errors, []);
   await page.close();
 });
+
+// Robustness on the WebGL-unavailable path (headless test Chrome): fallback, back to 2D, and
+// repeated view toggling must never throw or leave a broken layout.
+test('terrain fallback → 2D and repeated 2D↔3D↔terrain toggling (5×) stay error-free', async () => {
+  const { page, errors } = await openPage(chrome.browser, srv.url);
+  await page.click('[data-mode="demo"]');
+  await page.click('[data-scenario="congestion-shift"]');
+  await waitResult(page);
+  const settle = () =>
+    page.waitForFunction(
+      () => document.querySelector('#terrain canvas.maplibregl-canvas') || document.querySelector('[data-view="3d"]').getAttribute('aria-pressed') === 'true',
+      { timeout: 30000 }
+    );
+  const snap = () =>
+    page.evaluate(() => ({
+      pressed: [...document.querySelectorAll('[data-view]')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.view),
+      map: !document.getElementById('map').hidden,
+      chase: !document.getElementById('chase').hidden,
+      terrain: !document.getElementById('terrain').hidden,
+      canvas: !!document.querySelector('#terrain canvas.maplibregl-canvas'),
+      msg: !document.getElementById('terrain-msg').hidden,
+      terrainChildren: document.getElementById('terrain').children.length,
+    }));
+
+  await page.click('[data-view="terrain"]');
+  await settle();
+  const first = await snap();
+  await page.click('[data-view="2d"]');
+  const back = await snap();
+  assert.deepEqual(back.pressed, ['2d']);
+  assert.equal(back.map, true);
+  assert.equal(back.chase, false);
+  assert.equal(back.terrain, false);
+  if (!first.canvas) assert.equal(back.terrainChildren, 0, 'failed terrain view leaves no partial DOM');
+
+  for (let k = 0; k < 5; k++) {
+    await page.click('[data-view="3d"]');
+    let s = await snap();
+    assert.deepEqual(s.pressed, ['3d']);
+    assert.equal(s.chase, true);
+    assert.equal(s.map, false);
+    await page.click('[data-view="terrain"]');
+    await settle();
+    s = await snap();
+    if (s.canvas) {
+      assert.deepEqual(s.pressed, ['terrain']);
+      assert.equal(s.terrain, true);
+    } else {
+      // WebGL unavailable: it falls back to the chase preview with the explanation shown
+      assert.deepEqual(s.pressed, ['3d']);
+      assert.equal(s.chase, true);
+      assert.equal(s.terrain, false);
+      assert.equal(s.msg, true);
+    }
+    await page.click('[data-view="2d"]');
+    s = await snap();
+    assert.deepEqual(s.pressed, ['2d']);
+    assert.equal(s.map, true);
+    assert.equal(s.terrain, false);
+    assert.equal(s.chase, false);
+  }
+  // the timeline scrubber still drives the shared position after all the toggling
+  await page.$eval('#scrub', (s) => {
+    s.value = s.max;
+    s.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  assert.equal(await page.$eval('#scrub', (s) => s.value === s.max), true);
+  assert.deepEqual(errors, []);
+  await page.close();
+});

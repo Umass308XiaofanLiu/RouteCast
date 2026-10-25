@@ -29,6 +29,28 @@ function hasWebGL() {
   }
 }
 
+// Post-load map errors (a missing tile, a flaky style source) are expected offline or on bad
+// networks: log the first few, then at most one summary line per interval so the console is not
+// flooded and the HUD keeps working.
+export function makeErrorThrottle({ log = (...a) => console.warn(...a), first = 3, intervalMs = 30000, now = () => Date.now() } = {}) {
+  let count = 0;
+  let suppressed = 0;
+  let lastLog = 0;
+  return (err) => {
+    count++;
+    const t = now();
+    if (count <= first) {
+      lastLog = t;
+      log('terrain view: map error (view keeps working):', err?.message || err);
+    } else if (t - lastLog >= intervalMs) {
+      log(`terrain view: ${suppressed + 1} further map errors suppressed`);
+      lastLog = t;
+      suppressed = 0;
+    } else suppressed++;
+    return count;
+  };
+}
+
 function topCondition(row) {
   const cs = rowConditions(row);
   return COND_ORDER.find((c) => cs.includes(c)) || null;
@@ -54,6 +76,7 @@ function routeFeatures(model, ev) {
 
 export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion }) {
   if (!hasWebGL()) throw new Error('WebGL unavailable');
+  const motionOk = () => !reducedMotion() && !document.body.classList.contains('motion-off');
   const maplibregl = (await import('maplibre-gl')).default;
   await import('maplibre-gl/dist/maplibre-gl.css');
 
@@ -69,12 +92,15 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
       <button type="button" class="chip-btn" data-act="play" aria-pressed="false">Play</button>
       <button type="button" class="chip-btn" data-act="return">Return to playback position</button>
       <span class="chase-zoom"><button type="button" class="chip-btn" data-act="nearer" aria-label="Camera nearer">−</button><span data-hud="level">Near</span><button type="button" class="chip-btn" data-act="farther" aria-label="Camera farther">+</button></span>
-    </div>`;
+    </div>
+    <p class="terrain-lost" data-hud="lost" role="status" hidden style="position:absolute;inset:auto 10px 50%;z-index:3;margin:0;padding:10px 12px;border-radius:10px;background:#fff4e6;color:#7a3d00;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.25)"></p>`;
   const hud = {
     where: root.querySelector('[data-hud="where"]'),
     ahead: root.querySelector('[data-hud="ahead"]'),
     level: root.querySelector('[data-hud="level"]'),
     play: root.querySelector('[data-act="play"]'),
+    lost: root.querySelector('[data-hud="lost"]'),
+    note: root.querySelector('[data-hud="note"]'),
   };
 
   const map = new maplibregl.Map({
@@ -108,6 +134,8 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     pitch: 60,
     maxPitch: 85,
     attributionControl: { compact: true },
+    // reduced motion / motion-off: no tile/label cross-fades
+    fadeDuration: motionOk() ? 300 : 0,
   });
 
   // Resolve on 'load'; reject on an error before load or a 20 s timeout. Errors after load
@@ -129,7 +157,25 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
     map.on('error', onErr);
     map.once('load', () => finish(null));
   });
-  map.on('error', () => {}); // swallow post-load tile errors
+  const logError = makeErrorThrottle();
+  let errorCount = 0;
+  map.on('error', (e) => { errorCount = logError(e?.error || e); }); // throttled post-load tile/style errors
+  // WebGL context loss (GPU reset, too many contexts, tab backgrounded on mobile): never throw;
+  // stop playback, show an explanation inside this view and recover if the context returns.
+  let contextLost = false;
+  const LOST_MSG = '3D terrain paused: the browser lost its WebGL graphics context. Switch to 3D or 2D view, or wait for it to recover.';
+  map.on('webglcontextlost', () => {
+    contextLost = true;
+    stopPlayback(true);
+    hud.lost.textContent = LOST_MSG;
+    hud.lost.hidden = false;
+  });
+  map.on('webglcontextrestored', () => {
+    contextLost = false;
+    hud.lost.hidden = true;
+    hud.lost.textContent = '';
+    if (visible) safeFollow(true);
+  });
   // When the card is not very wide the expanded (now three-provider) attribution would cover the playback controls: start it
   // collapsed behind MapLibre's (i) button, which still shows the full credits on tap.
   if (root.clientWidth < 1200) root.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
@@ -153,11 +199,42 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
   let lastT = 0;
   let lastAdvance = 0;
   let lastAz = null;
-  const motionOk = () => !reducedMotion() && !document.body.classList.contains('motion-off');
+  let stepTimer = 0;
+  let destroyed = false;
   const maxIdx = () => (model ? model.samples.length - 1 : 0);
 
+  function safeFollow(instant) {
+    try {
+      follow(instant);
+    } catch (err) {
+      // a lost context or a half-loaded style must not break the controller
+      logError(err);
+    }
+  }
+
+  function stopPlayback(notify) {
+    const was = playing;
+    playing = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    if (stepTimer) clearInterval(stepTimer);
+    stepTimer = 0;
+    try { map.stop(); } catch { /* ignore */ }
+    updateButtons();
+    if (was && notify && model) onAdvance(Math.round(cur));
+  }
+
+  // Reduced motion / motion-off playback: discrete jumps (no per-frame camera animation).
+  function step() {
+    if (!playing || !visible || !model || contextLost) return stopPlayback(false);
+    cur = Math.min(maxIdx(), cur + 12);
+    safeFollow(true);
+    onAdvance(Math.round(cur));
+    if (cur >= maxIdx()) stopPlayback(false);
+  }
+
   function follow(instant) {
-    if (!model) return;
+    if (!model || destroyed || contextLost) return;
     const i = Math.round(cur);
     const smp = model.samples[i];
     const L = LEVELS[level];
@@ -204,11 +281,16 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
 
   function frame(now) {
     raf = 0;
-    if (!playing || !visible || !model) return;
+    if (!playing || !visible || !model || contextLost) return;
+    if (!motionOk()) {
+      // motion was switched off during playback: continue as discrete steps
+      stepTimer ||= setInterval(step, 600);
+      return;
+    }
     const dt = lastT ? Math.min(0.1, (now - lastT) / 1000) : 0;
     lastT = now;
     cur = Math.min(maxIdx(), cur + 25 * dt);
-    follow(true);
+    safeFollow(true);
     if (now - lastAdvance > 200) {
       lastAdvance = now;
       onAdvance(Math.round(cur));
@@ -224,55 +306,76 @@ export async function createTerrainView(root, { onAdvance, getFmt, reducedMotion
 
   const api = {
     setTrip(m, e) {
+      if (destroyed) return;
+      // a new trip: stop any playback of the old one; the single 'route' source is replaced
+      // in place (setData), so repeated trips never add duplicate sources, layers or markers
+      stopPlayback(false);
       model = m;
       ev = e;
-      cur = Math.min(cur, maxIdx());
-      map.getSource('route')?.setData(routeFeatures(model, ev));
-      if (visible) follow(true);
+      lastAz = null;
+      cur = Math.max(0, Math.min(cur, maxIdx()));
+      try { map.getSource('route')?.setData(routeFeatures(model, ev)); } catch (err) { logError(err); }
+      if (visible) safeFollow(true);
     },
     setCurrent(i) {
-      if (playing) return;
+      if (playing || destroyed) return;
       cur = Math.max(0, Math.min(maxIdx(), i));
-      if (visible) follow(false);
+      if (visible) safeFollow(false);
     },
     show(on) {
+      if (destroyed) return;
       visible = on;
       if (!on) {
-        playing = false;
-        updateButtons();
-        if (raf) cancelAnimationFrame(raf);
-        raf = 0;
+        // hidden: stop timers and any in-flight camera ease so nothing keeps re-rendering
+        stopPlayback(false);
       } else {
-        map.resize();
-        follow(true);
+        try { map.resize(); } catch (err) { logError(err); }
+        updateHud();
+        safeFollow(true);
       }
     },
     togglePlay() {
-      if (!model) return;
-      if (!playing && cur >= maxIdx()) cur = 0;
-      playing = !playing;
+      if (!model || destroyed || contextLost) return;
+      if (playing) return stopPlayback(true);
+      if (cur >= maxIdx()) cur = 0;
+      playing = true;
       updateButtons();
       lastT = 0;
-      if (playing) raf ||= requestAnimationFrame(frame);
-      else onAdvance(Math.round(cur));
+      if (motionOk()) raf ||= requestAnimationFrame(frame);
+      else stepTimer ||= setInterval(step, 600);
     },
     returnToCurrent() {
-      follow(false);
+      safeFollow(false);
     },
     setLevel(l) {
       level = Math.max(0, Math.min(LEVELS.length - 1, l));
-      follow(false);
+      if (model) updateHud();
+      safeFollow(false);
+    },
+    /** Release the map, marker, listeners and timers (e.g. before re-creating the view). */
+    destroy() {
+      if (destroyed) return;
+      stopPlayback(false);
+      destroyed = true;
+      visible = false;
+      window.removeEventListener('resize', onResize);
+      try { car.remove(); } catch { /* ignore */ }
+      try { map.remove(); } catch { /* ignore */ }
+      root.innerHTML = '';
     },
     get state() {
-      return { cur: Math.round(cur), level, playing, visible };
+      return { cur: Math.round(cur), level, playing, visible, contextLost, errors: errorCount, destroyed, timers: Number(!!raf) + Number(!!stepTimer) };
     },
     map,
   };
 
+  function onResize() {
+    if (visible && !destroyed) try { map.resize(); } catch { /* ignore */ }
+  }
   root.querySelector('[data-act="play"]').addEventListener('click', () => api.togglePlay());
   root.querySelector('[data-act="return"]').addEventListener('click', () => api.returnToCurrent());
   root.querySelector('[data-act="nearer"]').addEventListener('click', () => api.setLevel(level - 1));
   root.querySelector('[data-act="farther"]').addEventListener('click', () => api.setLevel(level + 1));
-  window.addEventListener('resize', () => visible && map.resize());
+  window.addEventListener('resize', onResize);
   return api;
 }

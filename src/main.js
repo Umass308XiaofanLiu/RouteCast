@@ -979,6 +979,11 @@ function gpsFollowing(on, wrongWay = false) {
   hud.hidden = !on;
   hud.textContent = gpsLabelNow;
   $('chase').querySelector('.chase-tag').textContent = on ? 'Snapped to your GPS position on the planned route' : GPS_CHASE_TAG;
+  // terrain region name (index.html default) follows the same state; the terrain tag + map
+  // name are updated by terrain.setGpsLabel (src/ui/terrain3d.js) via gpsSyncTerrain
+  $('terrain').setAttribute('aria-label', on
+    ? '3D terrain view of the planned route (following your GPS position snapped to the route; planned forecast)'
+    : '3D terrain view of the planned route (simulated playback, not GPS)');
   gpsSyncTerrain();
 }
 function gpsSyncTerrain() {

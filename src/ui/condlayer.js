@@ -5,6 +5,8 @@
 // Motion toggle (body.motion-off).
 import L from 'leaflet';
 import { conditionCandidates, thinByDistance, COND_LABEL } from '../lib/conditions.js';
+import { formatClock } from '../lib/time.js';
+import { placeLabel } from '../lib/trip.js';
 
 const S = (inner) => `<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">${inner}</svg>`;
 
@@ -49,10 +51,19 @@ export function createConditionLayer(map, { onPick }) {
     const minPx = z >= 9 ? 40 : z >= 7 ? 46 : 52;
     const project = (i) => map.latLngToContainerPoint([model.samples[i].lat, model.samples[i].lon]);
     const kept = thinByDistance(cands, project, { minPx, max: z >= 8 ? 70 : 40 });
+    // Keyboard: ONE tab stop per condition window (the first kept icon of that window) with a
+    // descriptive name (condition, projected time, place); the other icons of the same window are
+    // mouse/touch only and hidden from assistive tech, so Tab is not flooded with repeats.
+    const stops = new Set();
     for (const k of kept) {
       const s = model.samples[k.idx];
       const r = ev.rows[k.idx];
       const label = `${COND_LABEL[k.cat]}${k.cat === 'jam' ? ' (assumed delay scenario)' : ''}`;
+      const key = `${k.cat}:${k.range[0]}-${k.range[1]}`;
+      const isStop = !stops.has(key);
+      if (isStop) stops.add(key);
+      const near = placeLabel(model, s).near;
+      const name = `${label}, ${formatClock(r.t, r.timezone || model.originTz, { weekday: false })}${near ? ` ${near}` : ''}`;
       const m = L.marker([s.lat, s.lon], {
         icon: L.divIcon({
           className: 'cond-icon',
@@ -60,11 +71,17 @@ export function createConditionLayer(map, { onPick }) {
           iconSize: [30, 30],
           iconAnchor: [15, 36],
         }),
-        title: label,
-        alt: label,
-        keyboard: true,
+        title: name,
+        keyboard: isStop,
         riseOnHover: true,
         zIndexOffset: k.cat === 'glare' ? 300 : k.cat === 'night' ? -100 : 100,
+      });
+      m.on('add', (e) => {
+        const el = e.target.getElement();
+        if (!el) return;
+        el.dataset.condStop = String(isStop);
+        if (isStop) el.setAttribute('aria-label', name);
+        else el.setAttribute('aria-hidden', 'true');
       });
       m.on('click', () => onPick(k.idx, k.range));
       m.on('keypress', (e) => {
@@ -72,7 +89,6 @@ export function createConditionLayer(map, { onPick }) {
       });
       m.bindTooltip(label, { direction: 'top', offset: [0, -34] });
       layer.addLayer(m);
-      void r;
     }
   }
 

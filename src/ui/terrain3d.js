@@ -77,6 +77,13 @@ function routeFeatures(model, ev) {
 }
 
 const FLY_MS = 1800;
+const TERRAIN = { source: 'dem', exaggeration: 1.4 };
+// Top-left tag: simulated playback by default; while GPS follow is on (main.js gpsFollowing →
+// setGpsLabel) the represented position is the GPS fix snapped to the planned route.
+export const TERRAIN_TAG_SIM = 'Simulated playback of the planned route · real terrain (AWS Terrain Tiles) · not GPS';
+export const TERRAIN_TAG_GPS = 'Snapped to your GPS position on the planned route · real terrain (AWS Terrain Tiles)';
+const MAP_LABEL = '3D terrain view of the planned route. Scroll, swipe or use arrow keys to look ahead or behind; pinch, Ctrl+scroll or plus/minus change the camera distance; Space plays or pauses.';
+const NARROW_MQ = '(max-width: 640px)';
 
 export async function createTerrainView(root, { onAdvance, onPreview = () => {}, onLevel = () => {}, onStatus = () => {}, getFmt, reducedMotion, level: level0 = 1 }) {
   if (!hasWebGL()) throw new Error('WebGL unavailable');
@@ -85,12 +92,13 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
   await import('maplibre-gl/dist/maplibre-gl.css');
 
   root.innerHTML = `
-    <div class="terrain-map" tabindex="0" role="application" aria-roledescription="3D map" aria-label="3D terrain view of the planned route. Scroll, swipe or use arrow keys to look ahead or behind; pinch, Ctrl+scroll or plus/minus change the camera distance; Space plays or pauses."></div>
+    <div class="terrain-map" tabindex="0" role="application" aria-roledescription="3D map" aria-label="${MAP_LABEL} Simulated playback, not GPS."></div>
     <div class="chase-top">
-      <span class="chase-tag">Simulated playback of the planned route · real terrain (AWS Terrain Tiles) · not GPS</span>
+      <span class="chase-tag" data-hud="tag">${TERRAIN_TAG_SIM}</span>
       <span class="chase-where" data-hud="where"></span>
       <span class="chase-state terrain-state" data-hud="state"></span>
-      <span class="terrain-note" data-hud="note">Loads online map + elevation tiles; scenario weather stays hand-set · sky, sun glow, rain/snow, fog, night and wind effects and hillshade light follow the represented sample (visual only, not used for glare)</span>
+      <button type="button" class="terrain-note-toggle" data-act="note" aria-expanded="true" aria-controls="terrain-note-text" aria-label="About this 3D terrain view" title="About this view">ⓘ</button>
+      <span class="terrain-note" id="terrain-note-text" data-hud="note">Loads online map + elevation tiles; scenario weather stays hand-set · sky, sun glow, rain/snow, fog, night and wind effects and hillshade light follow the represented sample (visual only, not used for glare)</span>
     </div>
     <div class="chase-ahead terrain-ahead" data-hud="ahead"></div>
     <div class="chase-controls" role="group" aria-label="3D terrain controls">
@@ -110,7 +118,25 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
     state: root.querySelector('[data-hud="state"]'),
     lost: root.querySelector('[data-hud="lost"]'),
     note: root.querySelector('[data-hud="note"]'),
+    noteBtn: root.querySelector('[data-act="note"]'),
+    tag: root.querySelector('[data-hud="tag"]'),
+    map: root.querySelector('.terrain-map'),
   };
+  // Long data/visual-only note: expanded by default on desktop, collapsed behind the ⓘ toggle on
+  // narrow screens (≤ 640 px) so it does not cover the mobile HUD. A user choice sticks.
+  const narrow = window.matchMedia?.(NARROW_MQ);
+  let noteChosen = false;
+  const setNote = (open) => {
+    hud.note.hidden = !open;
+    hud.noteBtn.setAttribute('aria-expanded', String(open));
+  };
+  setNote(!narrow?.matches);
+  hud.noteBtn.addEventListener('click', () => {
+    noteChosen = true;
+    setNote(hud.note.hidden);
+  });
+  const onNarrow = (e) => { if (!noteChosen) setNote(!e.matches); };
+  narrow?.addEventListener?.('change', onNarrow);
 
   const map = new maplibregl.Map({
     container: root.querySelector('.terrain-map'),
@@ -182,16 +208,43 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
     hud.lost.textContent = LOST_MSG;
     hud.lost.hidden = false;
   });
+  // Restore: MapLibre 4.7 builds a new Painter on 'webglcontextrestored' but keeps map.terrain
+  // (and its render-to-texture framebuffers) bound to the OLD painter/context, and tile
+  // textures / hillshade FBOs of the dead context; the next terrain frame then throws
+  // "Framebuffer is not complete" (seen in the SwiftShader visual suite). So, synchronously
+  // (before that frame): drop the stale terrain, then rebuild the style from its own snapshot
+  // (sources, layers, route data, hillshade light and terrain) so every GL resource is
+  // recreated on the new context. Camera/HUD follow once the rebuilt style has loaded.
+  let restoring = false;
   map.on('webglcontextrestored', () => {
     contextLost = false;
     hud.lost.hidden = true;
     hud.lost.textContent = '';
-    if (visible) safeFollow(true);
+    restoring = true;
+    let snapshot = null;
+    try {
+      snapshot = map.getStyle();
+      map.setTerrain(null);
+      map.setStyle(snapshot, { diff: false });
+    } catch (err) {
+      logError(err);
+    }
+    const done = () => {
+      if (!restoring || destroyed) return;
+      restoring = false;
+      try { if (!map.getTerrain()) map.setTerrain(TERRAIN); } catch (err) { logError(err); }
+      lastAz = null;
+      if (model) try { map.getSource('route')?.setData(routeFeatures(model, ev)); } catch (err) { logError(err); }
+      if (visible) safeFollow(true);
+    };
+    if (snapshot) map.once('style.load', done);
+    else done();
+    setTimeout(done, 15000); // style never finished loading (offline): still resume the view
   });
   // When the card is not very wide the expanded (now three-provider) attribution would cover the playback controls: start it
   // collapsed behind MapLibre's (i) button, which still shows the full credits on tap.
   if (root.clientWidth < 1200) root.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
-  map.setTerrain({ source: 'dem', exaggeration: 1.4 });
+  map.setTerrain(TERRAIN);
   map.addSource('route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 9, 'line-opacity': 0.9 } });
   map.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 5.5 } });
@@ -264,7 +317,7 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
   }
 
   function follow(instant) {
-    if (!model || destroyed || contextLost) return;
+    if (!model || destroyed || contextLost || restoring) return;
     const c = model.samples[Math.round(cur)];
     car.setLngLat([c.lon, c.lat]).setRotation(c.heading);
     const i = displayIdx();
@@ -382,6 +435,9 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
       }
       el.textContent = text || '';
       el.hidden = !text;
+      // keep the tag and the map's accessible name consistent with the GPS label
+      hud.tag.textContent = text ? TERRAIN_TAG_GPS : TERRAIN_TAG_SIM;
+      hud.map.setAttribute('aria-label', `${MAP_LABEL} ${text ? 'Following your GPS position snapped to the planned route; conditions are still the planned forecast.' : 'Simulated playback, not GPS.'}`);
     },
     // --- end GPS follow label hook ---
     /** Restore a shared preview (absolute sample index, or null) without changing playback. */
@@ -462,6 +518,7 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
       destroyed = true;
       visible = false;
       window.removeEventListener('resize', onResize);
+      narrow?.removeEventListener?.('change', onNarrow);
       try { fx.destroy(); } catch { /* ignore */ }
       try { car.remove(); } catch { /* ignore */ }
       try { ghost.remove(); } catch { /* ignore */ }
@@ -474,7 +531,7 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
         const c = map.getCenter();
         camera = { lon: c.lng, lat: c.lat, zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
       } catch { /* ignore */ }
-      return { cur: Math.round(cur), preview: displayIdx() - Math.round(cur), level, playing, flying, camera, visible, contextLost, errors: errorCount, destroyed, timers: Number(!!raf) + Number(!!stepTimer), fx: fx.state };
+      return { cur: Math.round(cur), preview: displayIdx() - Math.round(cur), level, playing, flying, camera, visible, contextLost, errors: errorCount, restoring, terrain: (() => { try { return !!map.getTerrain(); } catch { return null; } })(), noteExpanded: !hud.note.hidden, destroyed, timers: Number(!!raf) + Number(!!stepTimer), fx: fx.state };
     },
     map,
   };

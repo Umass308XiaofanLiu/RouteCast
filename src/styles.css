@@ -464,3 +464,10 @@ body.motion-off .view-enter { animation: none !important; }
 .gps-accuracy { pointer-events: none; }
 .terrain-gps { z-index: 3; top: auto; bottom: 96px; } /* clear of the terrain note row */
 /* --- end b3-gps --- */
+
+/* ===== b4-ui: terrain note toggle (review finding 4) — begin ===== */
+.terrain-note-toggle { pointer-events: auto; border: 0; width: 26px; height: 26px; min-width: 26px; border-radius: 50%; background: rgba(15,27,51,.78); color: #fff; font-size: 15px; line-height: 26px; padding: 0; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.terrain-note-toggle[aria-expanded='true'] { background: #fff; color: #0f1b33; }
+.terrain-note-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.terrain-note[hidden] { display: none; }
+/* ===== b4-ui: terrain note toggle — end ===== */

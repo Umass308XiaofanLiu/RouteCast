@@ -2,6 +2,17 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { C, PHASE_COLOR, PHASE_LABEL, WEATHER_COLOR, WEATHER_LABEL, GLARE_LABEL, weatherCategory } from './palette.js';
+import { formatClock } from '../lib/time.js';
+import { placeLabel } from '../lib/trip.js';
+
+/**
+ * Accessible name for a divIcon marker (Leaflet's `alt` only applies to <img> icons, so a
+ * keyboard marker would otherwise be announced by its visible glyph, e.g. "A").
+ * Re-applied on every add because Leaflet recreates the icon element.
+ */
+export function markerA11y(marker, label) {
+  return marker.on('add', (e) => e.target.getElement()?.setAttribute('aria-label', label));
+}
 
 export const LAYERS = {
   glare: {
@@ -80,15 +91,23 @@ export function createMap(el, { onPick }) {
     marks.clearLayers();
     const a = model.samples[0];
     const b = model.samples[model.samples.length - 1];
-    L.marker([a.lat, a.lon], { icon: L.divIcon({ className: '', html: '<div class="pin a">A</div>', iconSize: [26, 26], iconAnchor: [13, 13] }), title: model.originLabel, alt: `Start: ${model.originLabel}` }).addTo(marks);
-    L.marker([b.lat, b.lon], { icon: L.divIcon({ className: '', html: '<div class="pin b">B</div>', iconSize: [26, 26], iconAnchor: [13, 13] }), title: model.destLabel, alt: `Destination: ${model.destLabel}` }).addTo(marks);
+    const ra = ev.rows[0];
+    const rb = ev.rows[ev.rows.length - 1];
+    const clock = (r) => formatClock(r.t, r.timezone || model.originTz, { weekday: false });
+    // Keyboard: start/end are the only tab stops here (descriptive names with place + time);
+    // glare windows get their single keyboard stop from the condition layer (condlayer.js).
+    markerA11y(L.marker([a.lat, a.lon], { icon: L.divIcon({ className: '', html: '<div class="pin a" aria-hidden="true">A</div>', iconSize: [26, 26], iconAnchor: [13, 13] }), title: model.originLabel }),
+      `Start: ${model.originLabel}, departs ${clock(ra)}`).addTo(marks);
+    markerA11y(L.marker([b.lat, b.lon], { icon: L.divIcon({ className: '', html: '<div class="pin b" aria-hidden="true">B</div>', iconSize: [26, 26], iconAnchor: [13, 13] }), title: model.destLabel }),
+      `Destination: ${model.destLabel}, arrives ${clock(rb)}`).addTo(marks);
     for (const w of glareWindows) {
       const s = model.samples[w.peak];
       L.marker([s.lat, s.lon], {
         icon: L.divIcon({ className: '', html: `<div class="sun-pin" style="box-shadow:0 0 0 3px ${C.g[w.peakExpected] || C.g[1]}">sun</div>`, iconSize: [22, 22], iconAnchor: [11, 11] }),
-        title: 'Sun glare',
-        alt: 'Sun glare window',
+        title: `Sun glare peak, ${clock(ev.rows[w.peak])} ${placeLabel(model, s).near}`.trim(),
+        keyboard: false,
       })
+        .on('add', (e) => e.target.getElement()?.setAttribute('aria-hidden', 'true'))
         .on('click', () => onPick(w.peak))
         .addTo(marks);
     }

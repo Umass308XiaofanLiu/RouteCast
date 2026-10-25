@@ -352,12 +352,23 @@ export function createTerrainFx(container, { map, motionOk, getFmt, after = null
     ctx.fillText('▲ view', gx, gy - r * 0.66);
     let label = 'wind —';
     try { if (p.hasWx) label = `wind ${getFmt().speed(p.wind.speed)}`; } catch { /* ignore */ }
-    ctx.font = `${10 * dpr}px system-ui, sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.lineWidth = 3 * dpr;
-    ctx.strokeStyle = 'rgba(15,27,51,.7)';
-    ctx.strokeText(label, 6 * dpr, gy + r + 12 * dpr);
-    ctx.fillText(label, 6 * dpr, gy + r + 12 * dpr);
+    // caption on a dark rounded pill under the dial (readable over bright sky/terrain/snow)
+    ctx.font = `700 ${10.5 * dpr}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(label).width;
+    const ph = 17 * dpr;
+    const pw = tw + 12 * dpr;
+    const px = Math.max(4 * dpr, gx - pw / 2);
+    const py = gy + r + 4 * dpr;
+    ctx.fillStyle = 'rgba(15,27,51,.86)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, ph / 2);
+    else ctx.rect(px, py, pw, ph);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, px + pw / 2, py + ph / 2 + 0.5 * dpr);
+    ctx.textBaseline = 'alphabetic';
 
     Object.assign(canvas.dataset, {
       particles: String(p.particles),

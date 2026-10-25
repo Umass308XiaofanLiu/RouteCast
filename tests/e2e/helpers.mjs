@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-export const SHOTS = join(ROOT, 'docs', 'qa');
+export const SHOTS = process.env.UPDATE_SHOTS === '1' ? join(ROOT, 'docs', 'qa') : join(tmpdir(), 'glarepilot-e2e-shots');
 const CHROME = process.env.CHROME_PATH || '/opt/google/chrome/chrome';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
 

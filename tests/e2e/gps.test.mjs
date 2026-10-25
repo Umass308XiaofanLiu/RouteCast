@@ -186,6 +186,9 @@ test('3D chase: jitter behind is held, a sustained reversal gets a gentle wrong-
   await page.waitForFunction((v) => document.getElementById('scrub').value === v, { timeout: 20000 }, String(i));
   assert.match(await text(page, '#chase [data-hud="gps"]'), FOLLOW);
   assert.match(await text(page, '.chase-tag'), /Snapped to your GPS position on the planned route/);
+  // review 2: the terrain region's name follows GPS follow too (not 'not GPS' while following)
+  assert.match(await page.$eval('#terrain', (e) => e.getAttribute('aria-label')), /following your GPS position/);
+  assert.doesNotMatch(await page.$eval('#terrain', (e) => e.getAttribute('aria-label')), /not GPS/);
   const where = await text(page, '[data-hud="where"]');
   const glare = await text(page, '#kpis');
   // a jittery fix one sample behind: held (no backwards jump)
@@ -206,6 +209,8 @@ test('3D chase: jitter behind is held, a sustained reversal gets a gentle wrong-
   await page.click('#gps-stop');
   assert.equal(await page.$eval('#chase [data-hud="gps"]', (e) => e.hidden), true);
   assert.equal(await circleCount(page), 0);
+  assert.match(await page.$eval('#terrain', (e) => e.getAttribute('aria-label')), /simulated playback, not GPS/);
+  assert.match(await text(page, '#chase .chase-tag'), /not GPS/);
   assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
   assert.equal(calls.valhalla + calls.osrm + calls.forecast + calls.geocode, 0);
   assert.deepEqual(calls.blocked, []);

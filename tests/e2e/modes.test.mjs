@@ -26,6 +26,22 @@ test('manual demo scenarios: one click, synthetic labels, zero API calls', async
     assert.match(await text(page, '#provenance'), /Manual demo · synthetic data/);
     assert.match(await text(page, '#prov'), /synthetic data.*hand-set/i);
     assert.ok((await page.$$('.cond-icon')).length > 0, `${id} has condition icons`);
+    // keyboard/a11y (review 6): descriptive names; start/end + ONE tab stop per condition window
+    await page.waitForFunction(() => document.querySelector('#map .cond-icon[data-cond-stop]'));
+    const mk = await page.$$eval('#map .leaflet-marker-pane > *', (els) => els.map((e) => ({
+      tab: e.getAttribute('tabindex'), name: e.getAttribute('aria-label'), hidden: e.getAttribute('aria-hidden'), cond: e.classList.contains('cond-icon'), stop: e.dataset.condStop, title: e.getAttribute('title'),
+    })));
+    const tabs = mk.filter((m) => m.tab === '0');
+    assert.ok(tabs.length >= 3, `${id}: start, end and at least one condition stop`);
+    for (const m of tabs) assert.ok(m.name && m.name.length > 12 && !/^(A|B|sun)$/.test(m.name), `${id}: tab stop has a descriptive name (${m.name})`);
+    assert.match(tabs.find((m) => /^Start: /.test(m.name))?.name ?? '', /^Start: .+, departs \d{1,2}:\d\d [AP]M [A-Z]{2,4}$/);
+    assert.match(tabs.find((m) => /^Destination: /.test(m.name))?.name ?? '', /^Destination: .+, arrives \d{1,2}:\d\d [AP]M [A-Z]{2,4}$/);
+    const condStops = tabs.filter((m) => m.cond);
+    for (const m of condStops) assert.match(m.name, /, \d{1,2}:\d\d [AP]M [A-Z]{2,4}( (near|\d+ mi from) .+)?$/);
+    // no two keyboard stops for the same condition window; the rest are hidden from AT
+    assert.equal(new Set(condStops.map((m) => m.name)).size, condStops.length);
+    for (const m of mk.filter((x) => x.tab !== '0' && (x.cond || /sun glare/i.test(x.title || '')))) assert.equal(m.hidden, 'true', `${id}: non-stop icon is aria-hidden`);
+    assert.ok(mk.filter((m) => m.cond).length >= condStops.length);
   }
   assert.match(await text(page, '#delay-card'), /What the assumed delay changes/);
   assert.match(await text(page, '#delay-card'), /not measured or predicted traffic/);

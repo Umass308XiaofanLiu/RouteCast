@@ -14,7 +14,8 @@
 // ONLY=^views runs the view/camera parity check (2D → terrain fly-in, wheel preview, return,
 // level buttons, reduced motion) and writes views-*.png; it uses ?demo=sunset-glare&qa.
 import puppeteer from 'puppeteer-core';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { resampleRoute } from '../../src/lib/geo.js';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -42,7 +43,7 @@ const SHOTS = [
 /** Pairs of visible HUD boxes inside #terrain that intersect (should be none). */
 function hudOverlaps() {
   const root = document.getElementById('terrain');
-  const sel = ['.chase-tag', '.chase-where', '.terrain-state', '.terrain-note', '.terrain-ahead', '.chase-controls > *', '.maplibregl-ctrl-attrib'];
+  const sel = ['.chase-tag', '.chase-where', '.terrain-state', '.terrain-note-toggle', '.terrain-note', '.terrain-ahead', '.chase-controls > *', '.maplibregl-ctrl-attrib'];
   const boxes = [];
   for (const s of sel) {
     for (const el of root.querySelectorAll(s)) {
@@ -82,7 +83,7 @@ try {
     page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && warnings.push(m.text().slice(0, 160)));
     await page.setViewport(shot.vp);
     if (shot.reduced) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
-    await page.goto(`${BASE}?demo=${shot.demo}&view=terrain`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}?demo=${shot.demo}&view=terrain${shot.loseContext ? '&qa' : ''}`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('#terrain canvas.maplibregl-canvas') || !document.getElementById('terrain-msg').hidden, { timeout: 60000 });
     const canvas = await page.$('#terrain canvas.maplibregl-canvas');
     if (canvas && shot.end) {
@@ -132,10 +133,31 @@ try {
       await new Promise((r) => setTimeout(r, 400));
       return { ...c.dataset, hidden: c.hidden, pointerEvents: getComputedStyle(c).pointerEvents, frameChanged: c.toDataURL() !== d1 };
     });
+    // review 4: long note collapsed behind ⓘ on ≤ 640 px, expanded on desktop; toggle is a real
+    // button with aria-expanded, operable from the keyboard
+    const note = await page.evaluate(() => {
+      const b = document.querySelector('#terrain [data-act="note"]');
+      const n = document.querySelector('#terrain [data-hud="note"]');
+      return b && n ? { expanded: b.getAttribute('aria-expanded'), noteHidden: n.hidden, controls: b.getAttribute('aria-controls') === n.id } : null;
+    });
+    const checks = {};
+    if (canvas) {
+      const narrow = shot.vp.width <= 640;
+      checks.noteDefault = !!note && note.controls && (narrow ? note.expanded === 'false' && note.noteHidden : note.expanded === 'true' && !note.noteHidden);
+    }
     const file = join(OUT, `terrain-integration-${shot.name}.png`);
     const el = await page.$('#terrain:not([hidden])') || await page.$('#chase');
     await page.screenshot({ path: file, fullPage: false });
     if (el) await el.screenshot({ path: file.replace('.png', '-view.png') });
+    if (canvas && shot.vp.width <= 640) {
+      await page.focus('#terrain [data-act="note"]');
+      await page.keyboard.press('Enter');
+      await sleep(300);
+      checks.noteToggleKeyboard = await page.evaluate(() => document.querySelector('#terrain [data-act="note"]').getAttribute('aria-expanded') === 'true' && !document.querySelector('#terrain [data-hud="note"]').hidden);
+      await page.keyboard.press('Space');
+      await sleep(300);
+      checks.noteToggleCollapses = await page.evaluate(() => document.querySelector('#terrain [data-hud="note"]').hidden);
+    }
     let contextLoss = null;
     if (canvas && shot.loseContext) {
       // simulate a GPU reset: the view must show its own explanation and must not throw
@@ -149,10 +171,20 @@ try {
         const shown = !!lost && !lost.hidden;
         document.querySelector('#terrain [data-act="play"]').click(); // must be a no-op, not a throw
         ext.restoreContext();
-        await new Promise((r) => setTimeout(r, 1500));
-        return { supported: true, messageShownWhileLost: shown, hiddenAfterRestore: !!lost && lost.hidden };
+        // the view rebuilds its style on the new context; wait until terrain is back
+        const t0 = Date.now();
+        while (Date.now() - t0 < 20000 && !(window.__gpTerrain?.state.terrain && !window.__gpTerrain.state.restoring)) await new Promise((r) => setTimeout(r, 250));
+        await new Promise((r) => setTimeout(r, 4000)); // several rendered terrain frames after restore
+        const st = window.__gpTerrain?.state;
+        return { supported: true, messageShownWhileLost: shown, hiddenAfterRestore: !!lost && lost.hidden, terrainBack: !!st?.terrain, restoring: st?.restoring, mapErrors: st?.errors };
       });
+      if (contextLoss.supported) {
+        checks.contextRestoreTerrain = contextLoss.terrainBack && contextLoss.hiddenAfterRestore && contextLoss.messageShownWhileLost && !contextLoss.restoring;
+        await page.screenshot({ path: file.replace('.png', '-restored.png') });
+      }
     }
+    if (note) Object.assign(info, { note });
+    if (Object.keys(checks).length) info.checks = checks;
     summary.push({ shot: shot.name, file, webglCanvas: !!canvas, fx, level, where, gps, ...info, contextLoss, errors, warnings: warnings.length, warningSample: warnings.slice(0, 3) });
     await page.close();
   }
@@ -160,6 +192,7 @@ try {
   if (!process.env.ONLY || new RegExp(process.env.ONLY).test('views')) {
     for (const reduced of [false, true]) summary.push(await viewsCheck(reduced));
   }
+  if (!process.env.ONLY || new RegExp(process.env.ONLY).test('gps-terrain')) summary.push(await gpsTerrainCheck());
 } finally {
   await browser.close();
   rmSync(profile, { recursive: true, force: true });
@@ -271,4 +304,47 @@ async function viewsCheck(reduced) {
   checks.levelShared = (await page.$eval('#chase [data-hud="level"]', (e) => e.textContent)) === 'Near';
   await page.close();
   return { shot: `views${reduced ? '-reduced' : ''}`, checks, ...out, errors };
+}
+
+// ---- review 2 (ONLY=gps-terrain): GPS follow relabels the terrain tag + accessible names ----
+async function gpsTerrainCheck() {
+  const snap = JSON.parse(readFileSync(new URL('../../public/fixtures/amherst-chicago.json', import.meta.url), 'utf8'));
+  const SAMPLES = resampleRoute(snap.route, 1000, 600); // sunset-glare demo route (as in gps.test.mjs)
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.setViewport({ width: 1440, height: 1000 });
+  const ctx = browser.defaultBrowserContext();
+  await ctx.overridePermissions(new URL(BASE).origin, ['geolocation']);
+  await page.setGeolocation({ latitude: SAMPLES[400].lat, longitude: SAMPLES[400].lon, accuracy: 25 });
+  await page.goto(`${BASE}?demo=sunset-glare&view=terrain`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('#terrain canvas.maplibregl-canvas', { timeout: 60000 });
+  const read = () => page.evaluate(() => ({
+    tag: document.querySelector('#terrain .chase-tag')?.textContent,
+    region: document.getElementById('terrain').getAttribute('aria-label'),
+    map: document.querySelector('#terrain .terrain-map')?.getAttribute('aria-label'),
+    gps: document.querySelector('#terrain [data-hud="gps"]')?.textContent || '',
+  }));
+  const checks = {};
+  const off0 = await read();
+  checks.offSaysNotGps = /not GPS/.test(off0.tag) && /not GPS/.test(off0.region) && /not GPS/.test(off0.map);
+  await page.click('#gps-start');
+  await page.waitForFunction(() => /Snapped to your GPS/.test(document.querySelector('#terrain .chase-tag')?.textContent || ''), { timeout: 20000 }).catch(() => {});
+  const on = await read();
+  checks.onTag = /Snapped to your GPS position/.test(on.tag) && !/not GPS/.test(on.tag);
+  checks.onNames = !/not GPS/.test(on.region) && !/not GPS/.test(on.map) && /GPS/.test(on.map);
+  checks.onLabel = /Following your location \(GPS\)/.test(on.gps);
+  await sleep(6000);
+  await page.$eval('#terrain', (e) => e.scrollIntoView({ block: 'center' }));
+  await sleep(500);
+  const info = await page.evaluate(hudOverlaps);
+  const file = join(OUT, 'terrain-integration-gps-follow-desktop.png');
+  await page.screenshot({ path: file });
+  await page.click('#gps-stop');
+  await sleep(300);
+  const off = await read();
+  checks.stopRestores = /not GPS/.test(off.tag) && /not GPS/.test(off.region) && /not GPS/.test(off.map) && !off.gps;
+  await ctx.clearPermissionOverrides();
+  await page.close();
+  return { shot: 'gps-terrain', file, checks, on, ...info, errors };
 }

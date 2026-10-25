@@ -1,12 +1,12 @@
 # GlarePilot
 
-Forecast weather and sun glare for the places **and the times** you will actually be on a long US drive.
+Route-time weather and sunlight planning for long US drives: the forecast, the sun and the low-sun glare for the places **and the times** you will actually be on the road.
 
 ### ▶ [Watch the demo on YouTube](https://youtu.be/o3GfF2jkngo)
 
-[![GlarePilot 3D chase preview at the westbound sunset-glare stretch — click to watch the demo on YouTube](docs/media/cover-3d-chase-sunset-1200x800.png)](https://youtu.be/o3GfF2jkngo)
+[![GlarePilot: route map with projected conditions and the 3D chase preview at the low-sun stretch — click to watch the demo on YouTube](docs/media/glarepilot-project-cover-1200x800.jpg)](https://youtu.be/o3GfF2jkngo)
 
-<sub>Screenshot of the live app: recorded real-data snapshot (Amherst → Chicago, route and forecast captured Oct 24, 2026), 3D chase preview at the low-sun stretch near Lorain, OH. Simulated playback of the planned route, not GPS.</sub>
+<sub>Built from real screenshots of the live app: recorded real-data snapshot (Amherst → Chicago, route and forecast captured Oct 24, 2026) — 2D route map with projected conditions and the 3D chase preview at the low-sun stretch near Lorain, OH (simulated playback of the planned route, not GPS).</sub>
 
 **Live demo:** https://umass308xiaofanliu.github.io/glarepilot/ — free, no login, no API key.
 

@@ -150,3 +150,41 @@ test('overlays: Chicago trip -> INDOT work zones as advice lines and map markers
   assert.deepEqual(ctx.errors, []);
   await ctx.page.close();
 });
+
+test('security: external feed text in overlay tooltips/lines is escaped (no script execution)', async () => {
+  const evil = JSON.parse(JSON.stringify(INDOT));
+  const payload = '<img src=x onerror="window.__xss=(window.__xss||0)+1">';
+  for (const f of evil.features || []) {
+    if (f.properties?.core_details) {
+      f.properties.core_details.description = payload;
+      if (Array.isArray(f.properties.core_details.road_names)) f.properties.core_details.road_names = [payload];
+    }
+  }
+  const ctx = await openPage(chrome.browser, srv.url);
+  await ctx.page.evaluateOnNewDocument((indot) => {
+    const real = window.fetch.bind(window);
+    window.fetch = (input, init) => (String(input?.url || input).startsWith('https://in.carsprogram.org/') ? Promise.resolve(new Response(indot, { status: 200, headers: { 'Content-Type': 'application/json' } })) : real(input, init));
+  }, JSON.stringify(evil));
+  await ctx.page.reload({ waitUntil: 'domcontentloaded' });
+  const page = ctx.page;
+  await page.waitForSelector('#presets .preset');
+  await choosePlace(page, 'origin', 'Amherst, MA');
+  await choosePlace(page, 'dest', 'Chicago');
+  await setDeparture(page, '2026-10-25T08:00');
+  await page.click('#plan');
+  await waitResult(page);
+  await page.click('#ov-run');
+  await page.waitForSelector('.wz-pin', { timeout: 15000 });
+  const pins = await page.$$('.wz-pin');
+  for (const p of pins) {
+    await p.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    await p.hover().catch(() => {});
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(await page.evaluate(() => window.__xss || 0), 0, 'payload must not execute');
+  assert.equal(await page.$$eval('.leaflet-tooltip img, #overlay-notes img', (e) => e.length), 0, 'no injected elements');
+  assert.ok((await text(page, '#overlay-notes')).includes('<img'), 'payload shown as text');
+  assert.deepEqual(ctx.errors, []);
+  await page.close();
+});

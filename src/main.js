@@ -1249,7 +1249,7 @@ function renderOverlays() {
     const sug = res.speed.suggestion;
     parts.push(`<div class="ov-line ov-speed" id="ov-speed"><strong>NYC DOT speeds as of ${esc(ny(res.speed.asOf))} (current, not a forecast)</strong>: ${n ? `${n} slow link${n > 1 ? 's' : ''} on your route — ${esc(res.speed.slow.slice(0, 3).map((l) => `${l.name} ${Math.round(l.speedMph)} mph`).join('; '))}${n > 3 ? '…' : ''}.` : 'no slow links on your route.'}${sug ? ` Rough extra time ≈ ${sug.estimatedMin} min. <button type="button" class="ghost small" id="ov-add-delay" data-min="${sug.minutes}" data-where="${sug.where}">Add as delay assumption (+${sug.minutes} min)</button>` : ''}</div>`);
     for (const l of res.speed.slow) {
-      L.polyline(l.pts, { color: '#c92a2a', weight: 6, opacity: 0.85, className: 'ov-slow-line' }).bindTooltip(`NYC DOT: ${l.name} — ${Math.round(l.speedMph)} mph as of ${ny(res.speed.asOf)} (current, not a forecast)`).addTo(overlayLayer);
+      L.polyline(l.pts, { color: '#c92a2a', weight: 6, opacity: 0.85, className: 'ov-slow-line' }).bindTooltip(`NYC DOT: ${esc(l.name)} — ${esc(Math.round(l.speedMph))} mph as of ${esc(ny(res.speed.asOf))} (current, not a forecast)`).addTo(overlayLayer);
     }
   } else if (res.speedNote?.kind === 'stale') {
     parts.push(`<p class="ov-muted" id="ov-speed-stale">NYC DOT speeds are as of ${esc(ny(res.speedNote.asOf))}, too old to use.</p>`);
@@ -1260,7 +1260,7 @@ function renderOverlays() {
     const label = `Work zone reported by ${z.agency} (as of feed time ${feedT})`;
     parts.push(`<div class="ov-line ov-wz" data-wz="${esc(z.id)}"><strong>${esc(label)}</strong>: ${esc(z.road || 'road not named')}${z.direction ? ` ${esc(z.direction)}` : ''} — ${esc(z.description || 'work zone')} (${esc(when)}). Not a timing input.</div>`);
     L.marker([z.lat, z.lon], { icon: L.divIcon({ className: '', html: '<div class="wz-pin" aria-hidden="true">WZ</div>', iconSize: [24, 24], iconAnchor: [12, 12] }), title: label, alt: `${label}: ${z.road}` })
-      .bindTooltip(`${label}: ${z.road} — ${z.description}`)
+      .bindTooltip(`${esc(label)}: ${esc(z.road)} — ${esc(z.description)}`)
       .addTo(overlayLayer);
   }
   for (const n of res.notes) parts.push(`<p class="ov-muted ov-err">${esc(n.text)}</p>`);

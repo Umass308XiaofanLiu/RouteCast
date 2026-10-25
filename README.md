@@ -109,7 +109,7 @@ Hidden unless the URL has `?experimental=traffic` (or `localStorage["glarepilot.
 - **3D chase preview:** a lightweight Canvas 2D perspective projection of the actual route geometry, seen from behind and above a **simulated playback position** on the planned route. It is not GPS and has no terrain, buildings or WebGL.
 - Sky, sun, clouds, rain, snow, fog, wind streaks, night, headlights and assumed-delay tail lights are drawn from the represented point's projected conditions.
 - Mouse wheel, horizontal swipe or arrow keys preview ahead or behind without changing the playback position; **Return to playback position** goes back. Camera distances: Close / Near / Far / Wide. **Play/Pause** advances the playback.
-- Both views share one selected time with the timeline. GPS / live location is not implemented.
+- Both views share one selected time with the timeline. Optional GPS follow: see below.
 
 ## 3D terrain view
 
@@ -137,11 +137,14 @@ are an online dependency even in synthetic demo mode. Details: [docs/OCCLUSION.m
 Branch feature (not in the frozen contest build). Click **Use my location (optional)** to start; nothing happens before that click.
 
 - Uses the browser Geolocation API (HTTPS only) with explicit permission. Denied / unavailable / timed-out locations show a message, and the planned-route playback keeps working.
-- Each fix is matched to the nearest 1 km sample of the planned route. The status line shows the fix time, the reported accuracy (±) and the distance from the route line. Fixes coarser than ±1.5 km are not snapped; fixes more than 2 km from the route report "off this planned route" and leave the position unchanged.
+- Each fix is matched to a 1 km sample of the planned route (`snapFix` in `src/lib/geo.js`). The status line shows the fix time, the reported accuracy (±) and the distance from the route line. Fixes coarser than ±1.5 km are not snapped; fixes more than 2 km from the route report "off this planned route" and leave the position unchanged.
+- **Hysteresis:** forward progress is accepted at once and, near overlapping route legs, a match just ahead of the current position is preferred. A fix that matches *behind* the current position is held ("holding position") until 3 consecutive fixes agree, so GPS jitter never moves the position backwards. When the matched position keeps decreasing, the label gently adds "You seem to be moving against the planned direction?" (label only). After an off-route excursion the first fix back on the route snaps freely.
+- **2D accuracy circle:** the 2D map draws a circle around the latest fix with radius = the reported accuracy in meters. Only the latest fix is drawn; **Stop** removes it.
+- Following works the same in all views: the position drives the shared selection, so the 2D map, 3D chase preview and 3D terrain view all move together, and the 3D chase and 3D terrain views show the same "Following your location (GPS)" label.
 - Scrubbing, clicking the map/timeline/advice or playing the 3D preview **pauses** following, so you can explore the plan; **Return to my location** resumes it. **Stop** ends the watch.
-- The weather shown is still the **planned forecast** for this trip's timeline, not live conditions at your position; the clock is not re-timed to your actual progress.
-- Coordinates stay in memory in this tab: they are never stored, logged or sent anywhere (no API request carries them).
-- Tested with Chrome's emulated geolocation (near-route, off-route, imprecise, denied, pause/return). **Not yet verified on a real device's GPS.**
+- The weather and glare shown are still the **planned forecast** for this trip's timeline, not live conditions at your position; the clock is not re-timed to your actual progress. **The heading between consecutive GPS fixes is not used for glare** — glare uses the planned route heading at each sample.
+- Coordinates stay in memory in this tab: they are never stored, logged or sent anywhere (no API request carries them). Between fixes only route sample indices and counters are kept.
+- Tested with Chrome's emulated geolocation (near-route, 4-step Amherst→Chicago drive, accuracy circle, off-route and back, jitter, reversal, imprecise, denied, pause/return, 2D and 3D chase; the terrain-view label was checked manually in real Chrome under Xvfb). **Not yet verified on a real device's GPS.**
 
 ## Data you see and where it comes from
 
@@ -295,5 +298,5 @@ TODO (human) — add team member names as registered on SundAI.
 - **3D terrain view** (MapLibre GL + AWS Terrain Tiles): implemented on branch [`terrain-preview`](https://github.com/Umass308XiaofanLiu/glarepilot/tree/terrain-preview) but not visually verified (no WebGL in the build machine's headless browser), so it is not deployed.
 - **Terrain/building sun occlusion** in the glare calculation: not modeled. Glare uses bare sun geometry vs heading plus forecast clouds; hills, buildings, trees and road cuts can hide the sun.
 - **Live or predictive traffic**: not connected (the free routers are free-flow; traffic-aware APIs need keys). Delays are explicit user assumptions.
-- **Real GPS follow**: not implemented; the 3D view is a simulated playback of the planned route.
+- **Real-device GPS follow**: the optional follow mode is tested only with emulated geolocation; the 3D views remain a playback of the planned route.
 - Buildings in 3D, more scenario authoring, broader test coverage.

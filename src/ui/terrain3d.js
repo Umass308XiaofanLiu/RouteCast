@@ -368,6 +368,22 @@ export async function createTerrainView(root, { onAdvance, onPreview = () => {},
       preview = 0;
       if (visible) safeFollow(false);
     },
+    // --- GPS follow label hook (b3-gps) ---
+    /** Show the shared "Following your location (GPS)" label over the terrain view ('' hides it). */
+    setGpsLabel(text) {
+      if (destroyed) return;
+      let el = root.querySelector('[data-hud="gps"]');
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'chase-gps terrain-gps';
+        el.dataset.hud = 'gps';
+        el.setAttribute('role', 'status');
+        root.appendChild(el);
+      }
+      el.textContent = text || '';
+      el.hidden = !text;
+    },
+    // --- end GPS follow label hook ---
     /** Restore a shared preview (absolute sample index, or null) without changing playback. */
     setPreviewIdx(idx) {
       if (!model || playing || destroyed) return;

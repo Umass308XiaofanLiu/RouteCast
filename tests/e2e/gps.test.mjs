@@ -1,7 +1,15 @@
 // Optional "follow my location": off by default, explicit click, snaps to the planned route.
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { startServer, launch, openPage, text, waitResult } from './helpers.mjs';
+import { startServer, launch, openPage, text, waitResult, SNAP } from './helpers.mjs';
+import { resampleRoute } from '../../src/lib/geo.js';
+
+// The sunset-glare demo plays the recorded Amherst→Chicago route resampled every 1 km.
+const SAMPLES = resampleRoute(SNAP['amherst-chicago'].route, 1000, 600);
+const fixAt = (i, { dLat = 0, accuracy = 25 } = {}) => ({ latitude: SAMPLES[i].lat + dLat, longitude: SAMPLES[i].lon, accuracy });
+const statusIs = (page, re) => page.waitForFunction((src) => new RegExp(src).test(document.getElementById('gps-status').textContent), { timeout: 20000 }, re.source);
+const accuracyM = (page) => page.$eval('#map', (e) => e.dataset.gpsAccuracy ?? null);
+const circleCount = (page) => page.$$eval('#map path.gps-accuracy', (els) => els.length);
 
 let srv;
 let chrome;
@@ -123,6 +131,84 @@ test('exploring the plan pauses GPS following; Return to my location resumes it'
   assert.equal(await scrubValue(page), '0', 'back at the GPS-matched sample');
   assert.match(await text(page, '#gps-status'), FOLLOW);
   assert.equal(await page.$eval('#gps-return', (e) => e.hidden), true);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('driving Amherst→Chicago in 4 steps follows the route with an accuracy circle; off-route and back; Stop clears it', async () => {
+  const { page, errors, calls } = await openDemo(true);
+  const n = SAMPLES.length;
+  const steps = [0, Math.round(n * 0.25), Math.round(n * 0.5), Math.round(n * 0.8)];
+  await page.setGeolocation(fixAt(steps[0], { accuracy: 30 }));
+  await page.click('#gps-start');
+  await statusIs(page, /Following your location/);
+  assert.equal(await scrubValue(page), '0');
+  assert.equal(await circleCount(page), 1, '2D accuracy circle drawn');
+  assert.equal(await accuracyM(page), '30');
+  for (const [k, i] of steps.slice(1).entries()) {
+    const acc = 40 + k * 20;
+    await page.setGeolocation(fixAt(i, { dLat: 0.0002, accuracy: acc })); // ~22 m off the line
+    await page.waitForFunction((v) => document.getElementById('scrub').value === v, { timeout: 20000 }, String(i));
+    assert.match(await text(page, '#gps-status'), FOLLOW);
+    assert.doesNotMatch(await text(page, '#gps-status'), /against the planned direction/);
+    assert.equal(await accuracyM(page), String(acc), 'circle radius follows coords.accuracy');
+    assert.equal(await circleCount(page), 1, 'only the latest fix is drawn');
+  }
+  // off-route excursion (~11 km north): position unchanged, circle still shows the latest fix
+  const mid = steps[3];
+  await page.setGeolocation(fixAt(mid, { dLat: 0.1, accuracy: 50 }));
+  await statusIs(page, /off this planned route/);
+  assert.equal(await scrubValue(page), String(mid));
+  assert.equal(await page.$eval('#chase [data-hud="gps"]', (e) => e.hidden), true);
+  assert.equal(await circleCount(page), 1);
+  // back on the route a little further along
+  await page.setGeolocation(fixAt(mid + 3, { accuracy: 20 }));
+  await statusIs(page, /Following your location/);
+  assert.equal(await scrubValue(page), String(mid + 3));
+  await page.click('#gps-stop');
+  assert.equal(await circleCount(page), 0, 'Stop clears the accuracy circle');
+  assert.equal(await accuracyM(page), null);
+  assert.equal(await text(page, '#gps-status'), '');
+  // privacy: nothing stored, no request carried a coordinate
+  assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
+  assert.equal(calls.valhalla + calls.osrm + calls.forecast + calls.geocode, 0);
+  assert.deepEqual(calls.blocked, []);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('3D chase: jitter behind is held, a sustained reversal gets a gentle wrong-way label (planned forecast unchanged)', async () => {
+  const { page, errors, calls } = await openDemo(true);
+  await page.click('[data-view="3d"]');
+  const i = 400;
+  await page.setGeolocation(fixAt(i));
+  await page.click('#gps-start');
+  await page.waitForFunction((v) => document.getElementById('scrub').value === v, { timeout: 20000 }, String(i));
+  assert.match(await text(page, '#chase [data-hud="gps"]'), FOLLOW);
+  assert.match(await text(page, '.chase-tag'), /Snapped to your GPS position on the planned route/);
+  const where = await text(page, '[data-hud="where"]');
+  const glare = await text(page, '#kpis');
+  // a jittery fix one sample behind: held (no backwards jump)
+  await page.setGeolocation(fixAt(i - 1, { dLat: 0.0001 }));
+  await statusIs(page, /holding position/);
+  assert.equal(await scrubValue(page), String(i));
+  assert.equal(await text(page, '[data-hud="where"]'), where);
+  // a consistent reversal: accepted after confirmation and labelled gently
+  for (const j of [i - 3, i - 6, i - 9]) {
+    await page.setGeolocation(fixAt(j));
+    await new Promise((r) => setTimeout(r, 400)); // let each emulated fix be delivered
+  }
+  await statusIs(page, /moving against the planned direction\?/);
+  assert.equal(await scrubValue(page), String(i - 9));
+  assert.match(await text(page, '#chase [data-hud="gps"]'), /moving against the planned direction\?/);
+  assert.match(await text(page, '#chase [data-hud="gps"]'), FOLLOW, 'still the planned forecast');
+  assert.equal(await text(page, '#kpis'), glare, 'trip glare summary is not recomputed from GPS heading');
+  await page.click('#gps-stop');
+  assert.equal(await page.$eval('#chase [data-hud="gps"]', (e) => e.hidden), true);
+  assert.equal(await circleCount(page), 0);
+  assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
+  assert.equal(calls.valhalla + calls.osrm + calls.forecast + calls.geocode, 0);
+  assert.deepEqual(calls.blocked, []);
   assert.deepEqual(errors, []);
   await page.close();
 });

@@ -4,7 +4,9 @@ Forecast weather and sun glare for the places **and the times** you will actuall
 
 ### ▶ [Watch the demo on YouTube](https://youtu.be/o3GfF2jkngo)
 
-[![GlarePilot demo video on YouTube](https://img.youtube.com/vi/o3GfF2jkngo/hqdefault.jpg)](https://youtu.be/o3GfF2jkngo)
+[![GlarePilot 3D chase preview at the westbound sunset-glare stretch — click to watch the demo on YouTube](docs/media/cover-3d-chase-sunset-1200x800.png)](https://youtu.be/o3GfF2jkngo)
+
+<sub>Screenshot of the live app: recorded real-data snapshot (Amherst → Chicago, route and forecast captured Oct 24, 2026), 3D chase preview at the low-sun stretch near Lorain, OH. Simulated playback of the planned route, not GPS.</sub>
 
 **Live demo:** https://umass308xiaofanliu.github.io/glarepilot/ — free, no login, no API key.
 

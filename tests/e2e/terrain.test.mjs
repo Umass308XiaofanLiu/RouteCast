@@ -32,16 +32,20 @@ test('3D terrain view renders a MapLibre canvas or falls back to the 3D chase pr
     chaseHidden: document.getElementById('chase').hidden,
     msg: document.getElementById('terrain-msg').hidden ? '' : document.getElementById('terrain-msg').textContent,
     mapHidden: document.getElementById('map').hidden,
+        fxPointer: document.querySelector('#terrain canvas.terrain-fx') ? getComputedStyle(document.querySelector('#terrain canvas.terrain-fx')).pointerEvents : null,
   }));
   if (r.canvas && !r.view3d) {
     assert.equal(r.terrainHidden, false);
     assert.equal(r.mapHidden, true);
     assert.equal(r.chaseHidden, true);
+    // the weather/light/wind overlay never intercepts map gestures
+    assert.equal(r.fxPointer, 'none');
   } else {
     assert.equal(r.view3d, true);
     assert.equal(r.chaseHidden, false);
     assert.equal(r.terrainHidden, true);
     assert.match(r.msg, /3D terrain needs WebGL and online tiles/);
+    assert.equal(r.fxPointer, null, 'no effects overlay is left behind by a failed terrain view');
   }
   await page.click('[data-view="2d"]');
   assert.equal(await page.$eval('#map', (e) => e.hidden), false);

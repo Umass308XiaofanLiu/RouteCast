@@ -2,8 +2,8 @@
 
 Static single-page app (Vite 5, vanilla ES modules). There is no GlarePilot server: every request
 goes from the browser directly to a public service. State described here is the post-hackathon
-`local-integration` branch (checked against the code at 816df5c, 2026-10-24); the deployed GitHub
-Pages demo still runs the contest build `v1.0-hackachusetts`.
+v1.1.0 release (checked against the code at 816df5c/d8a745e, 2026-10-24/25), which is what the
+GitHub Pages demo serves; the contest build is preserved as `v1.0-hackachusetts`.
 
 ## Module map
 

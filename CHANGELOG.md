@@ -1,9 +1,9 @@
 # Changelog
 
-Dates are US Eastern. Summarized from `git log local-integration`; hashes point to representative
-commits. Nothing after `v1.0-hackachusetts` is deployed: GitHub Pages still serves the contest build.
+Dates are US Eastern. Hashes point to representative commits. The contest submission is preserved as
+tag/release `v1.0-hackachusetts`; GitHub Pages serves v1.1.0 since 2026-10-25.
 
-## Unreleased — post-hackathon (`local-integration`, 2026-10-24 evening, local only)
+## v1.1.0 — post-hackathon release (developed 2026-10-24 evening, published 2026-10-25)
 
 Views
 - 3D terrain view: MapLibre GL 4.7.1 + AWS Terrain Tiles, lazy-loaded, Canvas-chase fallback without

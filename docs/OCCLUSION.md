@@ -1,6 +1,6 @@
 # Terrain sun-occlusion — prototype assessment
 
-Status (2026-10-24, 23:24 EDT, `local-integration` @ 816df5c, local only, not deployed): the horizon
+Status (2026-10-24, 23:24 EDT, `local-integration` @ 816df5c; released in v1.1.0 on 2026-10-25): the horizon
 library drives an ON-DEMAND (or opt-in automatic) "terrain check" on each glare card and a SEPARATE
 terrain-adjusted glare figure (card line, hatched timeline stretches, KPI subtext). It is still NOT
 part of the geometric/expected glare score, advice severity or optimizer.

@@ -1,7 +1,7 @@
 # GlarePilot limitations
 
-Honest scope of the post-hackathon `local-integration` branch (2026-10-24). The live GitHub Pages
-demo runs the contest build, which has none of the branch features below.
+Honest scope of the v1.1.0 post-hackathon release (2026-10-25). The live GitHub Pages
+demo serves this release; the contest build (`v1.0-hackachusetts`) has none of the post-hackathon features.
 
 ## Timing and traffic
 

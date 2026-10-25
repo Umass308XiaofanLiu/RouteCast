@@ -704,6 +704,7 @@ function setView(view) {
     return;
   }
   terrain?.show(false);
+  if (view === '2d') $('terrain-msg').hidden = true; // the WebGL fallback note only explains the 3D chase fallback
   $('map').hidden = is3d;
   $('chase').hidden = !is3d;
   document.querySelector('.map-toolbar [aria-label="Map layer"]').hidden = is3d;

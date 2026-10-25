@@ -82,6 +82,7 @@ test('terrain fallback → 2D and repeated 2D↔3D↔terrain toggling (5×) stay
   assert.equal(back.map, true);
   assert.equal(back.chase, false);
   assert.equal(back.terrain, false);
+  assert.equal(back.msg, false, 'WebGL fallback note does not linger in 2D');
   if (!first.canvas) assert.equal(back.terrainChildren, 0, 'failed terrain view leaves no partial DOM');
 
   for (let k = 0; k < 5; k++) {

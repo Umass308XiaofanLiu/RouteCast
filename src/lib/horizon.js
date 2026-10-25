@@ -87,6 +87,7 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
  * sampleElevation(lat, lon) may be sync or async; returns meters or null.
  * @returns {Promise<{horizonAltDeg:number|null, atDistM:number|null, coverage:number, samples:number, status:string}>}
  *   status: 'ok' | 'no-observer-elevation' | 'no-data'
+ *   minDistM (default 0) ignores samples closer than this to the observer.
  */
 export async function terrainHorizon({
   lat,
@@ -96,8 +97,11 @@ export async function terrainHorizon({
   observerHeightM = 1.5,
   maxDistM = 30000,
   stepM,
+  minDistM = 0,
 }) {
-  const dists = sampleDistances(maxDistM, stepM);
+  // minDistM skips near-field samples: at ~30 m/px the first 1–3 DEM pixels mostly reflect road cuts,
+  // embankments and pixel quantisation, not a real horizon (see docs/OCCLUSION.md validation).
+  const dists = sampleDistances(maxDistM, stepM).filter((d) => d >= minDistM);
   const h0raw = await sampleElevation(lat, lon);
   if (!isNum(h0raw)) {
     return { horizonAltDeg: null, atDistM: null, coverage: 0, samples: dists.length, status: 'no-observer-elevation' };

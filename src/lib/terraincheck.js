@@ -3,6 +3,9 @@
 // it only returns a per-window summary that the UI shows beside the existing glare advice.
 import { terrainHorizon, sunBlocked } from './horizon.js';
 
+/** Default ray options: skip the first 100 m (≈ 3 z12 pixels, DEM near-field artefacts). */
+export const DEFAULT_HORIZON_OPTS = Object.freeze({ maxDistM: 30000, minDistM: 100 });
+
 export const TERRAIN_SOURCE_NOTE = 'Bare-earth elevation (AWS Terrain Tiles, ~30 m); buildings, trees and road cuts are not modeled';
 
 function abortError() {
@@ -48,7 +51,7 @@ export async function checkGlareWindows(model, ev, descs, { sampleElevation, max
   const guarded = async (lat, lon) => {
     if (signal?.aborted) throw abortError();
     try {
-      return await sampleElevation(lat, lon);
+      return await sampleElevation(lat, lon, { signal });
     } catch {
       return null;
     }
@@ -66,7 +69,7 @@ export async function checkGlareWindows(model, ev, descs, { sampleElevation, max
       const { r, i } = jobs[next++];
       const smp = model.samples[i];
       const sun = ev.rows[i].sun;
-      const horizon = await terrainHorizon({ lat: smp.lat, lon: smp.lon, azimuthDeg: sun.azimuth, sampleElevation: guarded, ...horizonOpts });
+      const horizon = await terrainHorizon({ lat: smp.lat, lon: smp.lon, azimuthDeg: sun.azimuth, sampleElevation: guarded, ...DEFAULT_HORIZON_OPTS, ...horizonOpts });
       const verdict = sunBlocked({ sunAltDeg: sun.altitude, horizon });
       r.checked++;
       r[verdict]++;

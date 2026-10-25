@@ -15,7 +15,7 @@ Forecast weather and sun glare for the places **and the times** you will actuall
 | [`?demo=congestion-shift`](https://umass308xiaofanliu.github.io/glarepilot/?demo=congestion-shift) | **Manual demo scenario** (synthetic): an assumed 75 min mid-route delay pushes the New York arrival into hand-set rain and darkness |
 | [`?demo=sunset-glare&view=3d`](https://umass308xiaofanliu.github.io/glarepilot/?demo=sunset-glare&view=3d) | **Manual demo scenario** (synthetic, clear skies) opened in the **3D chase preview** |
 
-**Demo video:** https://youtu.be/o3GfF2jkngo — the public demonstration video (narrated + captioned operation recording of the live site; synthetic TTS narration). It was posted on YouTube after the SundAI submission locked; the SundAI entry itself links the GitHub-hosted MP4 in [release v1.0-hackachusetts](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts) (MP4 + SRT). Transcript: [docs/media/TRANSCRIPT.md](docs/media/TRANSCRIPT.md).
+**Demo video:** https://youtu.be/o3GfF2jkngo — public operation demo video, posted on YouTube after the SundAI submission locked. The SundAI entry itself links the GitHub-hosted MP4 in [release v1.0-hackachusetts](https://github.com/Umass308XiaofanLiu/glarepilot/releases/tag/v1.0-hackachusetts), a narrated + captioned recording (synthetic TTS narration) with an SRT file; transcript of that release video: [docs/media/TRANSCRIPT.md](docs/media/TRANSCRIPT.md).
 
 Hackachusetts 2026 entry. Built with Kiro CLI — see [docs/SUBMISSION.md](docs/SUBMISSION.md).
 

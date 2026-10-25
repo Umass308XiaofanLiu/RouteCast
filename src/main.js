@@ -23,6 +23,8 @@ import { rowConditions } from './lib/conditions.js';
 import { createDemSampler } from './lib/demsampler.js';
 import { checkGlareWindows, terrainLine, TERRAIN_SOURCE_NOTE } from './lib/terraincheck.js';
 import { OPTIMIZER_TRAFFIC_NOTE, MODE_LABEL } from './lib/traffic/index.js';
+import L from 'leaflet';
+import { fetchOverlays, evaluateOverlays, overlaySources } from './lib/traffic/overlays/index.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -157,6 +159,7 @@ function announce(msg) {
 // ---------- planning ----------
 async function plan(req) {
   state.inflight?.abort();
+  resetOverlays();
   const ctrl = new AbortController();
   state.inflight = ctrl;
   state.lastRequest = req;
@@ -173,6 +176,8 @@ async function plan(req) {
     show('result');
     evaluate(req.departureUtc, { fit: true });
     focusResults();
+    state.overlay.model = model;
+    renderOverlays();
   } catch (e) {
     if (ctrl.signal.aborted) return;
     console.error(e);
@@ -267,6 +272,7 @@ function renderAll({ fit = false } = {}) {
   chase.setTrip(model, ev);
   terrain?.setTrip(model, ev); // terrain view
   renderAdvice();
+  renderOverlays();
   renderOptimizer();
   renderTable();
   $('scrub').max = String(ev.rows.length - 1);
@@ -672,6 +678,7 @@ function renderScenarioButtons() {
 async function openScenario(id) {
   const scn = SCENARIOS.find((x) => x.id === id);
   state.inflight?.abort();
+  resetOverlays();
   setMode('demo');
   if (!scn) {
     $('error-msg').textContent = `There is no manual demo scenario called “${id}”. Available: ${SCENARIOS.map((x) => x.id).join(', ')}`;
@@ -935,6 +942,7 @@ async function openSnapshot(id = PRESETS[0].id) {
   setMode('real');
   const p = PRESETS.find((x) => x.id === id || x.snapshot === `${id}.json`);
   state.inflight?.abort();
+  resetOverlays();
   const ctrl = new AbortController();
   state.inflight = ctrl;
   showFormError('');
@@ -968,9 +976,21 @@ $('use-snapshot').addEventListener('click', () => openSnapshot());
 $('error-snapshot').addEventListener('click', () => openSnapshot(state.lastRequest ? PRESETS.find((p) => PLACES[p.origin].label === state.lastRequest.origin.label && PLACES[p.dest].label === state.lastRequest.dest.label)?.id : undefined));
 
 // ---------- optional traffic provider key (never logged; memory only unless "Remember" is ticked) ----------
+// Experimental: the provider-key UI is hidden (and no provider is ever called) unless the URL has
+// ?experimental=traffic or localStorage 'glarepilot.experimental.traffic' is '1'.
 const TRAFFIC_STORE = 'glarepilot.traffic.v1';
+const TRAFFIC_EXPERIMENTAL = (() => {
+  if (new URLSearchParams(location.search).get('experimental') === 'traffic') return true;
+  try {
+    return localStorage.getItem('glarepilot.experimental.traffic') === '1';
+  } catch {
+    return false;
+  }
+})();
+$('traffic-cfg').hidden = !TRAFFIC_EXPERIMENTAL;
 const trafficMem = { provider: 'none', key: '' };
 function trafficConfig() {
+  if (!TRAFFIC_EXPERIMENTAL) return null;
   return trafficMem.provider !== 'none' && trafficMem.key ? { provider: trafficMem.provider, apiKey: trafficMem.key } : null;
 }
 function saveTraffic() {
@@ -983,7 +1003,7 @@ function saveTraffic() {
     /* storage unavailable: memory only */
   }
 }
-{
+if (TRAFFIC_EXPERIMENTAL) {
   try {
     const saved = JSON.parse(localStorage.getItem(TRAFFIC_STORE) || 'null');
     if (saved?.key) {
@@ -1002,6 +1022,88 @@ function saveTraffic() {
     $('traffic-remember').checked = false;
     saveTraffic();
     announce('Traffic key cleared from this page and this device.');
+  });
+}
+
+// ---------- keyless live overlays (NYC DOT speeds, WZDx work zones) — real-data plans only ----------
+// Never fetched in synthetic demo or snapshot mode. They never change timing by themselves: the
+// "Add as delay assumption" button copies a suggestion into the manual delay control.
+state.overlay = { ctrl: null, raw: null, model: null, status: 'idle' };
+let overlayLayer = null;
+function resetOverlays() {
+  state.overlay.ctrl?.abort();
+  state.overlay = { ctrl: null, raw: null, model: null, status: 'idle' };
+  renderOverlays();
+}
+// On demand (one click), like the terrain check: a plain plan makes no overlay requests.
+async function startOverlays() {
+  const model = state.model;
+  if (!model || model.source.kind !== 'live' || state.overlay.status === 'pending') return;
+  const departureUtc = state.ev.departureUtc;
+  const ctrl = new AbortController();
+  state.overlay = { ctrl, raw: null, model, status: 'pending' };
+  renderOverlays();
+  try {
+    const raw = await fetchOverlays(model, { departureUtc, signal: ctrl.signal });
+    if (state.overlay.ctrl !== ctrl || state.model !== model) return;
+    state.overlay.raw = raw;
+    state.overlay.status = 'done';
+  } catch (e) {
+    if (e?.name === 'AbortError' || state.overlay.ctrl !== ctrl) return;
+    state.overlay.raw = { nyc: null, nycError: null, wz: [], wzErrors: [{ agency: 'Live overlay', error: e?.message || String(e) }] };
+    state.overlay.status = 'done';
+  }
+  renderOverlays();
+}
+const ny = (t) => formatClock(t, 'America/New_York', { weekday: false });
+function renderOverlays() {
+  const box = $('overlay-notes');
+  if (!box) return;
+  if (mapView && !overlayLayer) overlayLayer = L.layerGroup().addTo(mapView.map);
+  overlayLayer?.clearLayers();
+  const o = state.overlay;
+  if (!state.model || !state.ev || o.model !== state.model || state.model.source.kind !== 'live') {
+    box.innerHTML = '';
+    return;
+  }
+  if (o.status !== 'done' || !o.raw) {
+    const src = overlaySources(state.model, state.ev.departureUtc);
+    box.innerHTML = !src.length
+      ? ''
+      : o.status === 'pending'
+        ? '<p class="ov-muted" id="ov-pending">Checking live overlays…</p>'
+        : `<div class="ov-run"><button type="button" class="ghost small" id="ov-run">Check live traffic overlays</button> <span class="fineprint">${esc(src.join(' · '))} — current/reported conditions, never applied to timing automatically</span></div>`;
+    $('ov-run')?.addEventListener('click', startOverlays);
+    return;
+  }
+  const res = evaluateOverlays(o.raw, state.model, state.ev);
+  const parts = [];
+  if (res.speed) {
+    const n = res.speed.slow.length;
+    const sug = res.speed.suggestion;
+    parts.push(`<div class="ov-line ov-speed" id="ov-speed"><strong>NYC DOT speeds as of ${esc(ny(res.speed.asOf))} (current, not a forecast)</strong>: ${n ? `${n} slow link${n > 1 ? 's' : ''} on your route — ${esc(res.speed.slow.slice(0, 3).map((l) => `${l.name} ${Math.round(l.speedMph)} mph`).join('; '))}${n > 3 ? '…' : ''}.` : 'no slow links on your route.'}${sug ? ` Rough extra time ≈ ${sug.estimatedMin} min. <button type="button" class="ghost small" id="ov-add-delay" data-min="${sug.minutes}" data-where="${sug.where}">Add as delay assumption (+${sug.minutes} min)</button>` : ''}</div>`);
+    for (const l of res.speed.slow) {
+      L.polyline(l.pts, { color: '#c92a2a', weight: 6, opacity: 0.85, className: 'ov-slow-line' }).bindTooltip(`NYC DOT: ${l.name} — ${Math.round(l.speedMph)} mph as of ${ny(res.speed.asOf)} (current, not a forecast)`).addTo(overlayLayer);
+    }
+  } else if (res.speedNote?.kind === 'stale') {
+    parts.push(`<p class="ov-muted" id="ov-speed-stale">NYC DOT speeds are as of ${esc(ny(res.speedNote.asOf))}, too old to use.</p>`);
+  }
+  for (const z of res.zones) {
+    const when = [z.start ? `from ${new Date(z.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : '', z.end ? `until ${new Date(z.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'no end date given'].filter(Boolean).join(' ');
+    const feedT = z.feedTime ? formatClock(z.feedTime, state.model.originTz, { weekday: false }) : 'unknown';
+    const label = `Work zone reported by ${z.agency} (as of feed time ${feedT})`;
+    parts.push(`<div class="ov-line ov-wz" data-wz="${esc(z.id)}"><strong>${esc(label)}</strong>: ${esc(z.road || 'road not named')}${z.direction ? ` ${esc(z.direction)}` : ''} — ${esc(z.description || 'work zone')} (${esc(when)}). Not a timing input.</div>`);
+    L.marker([z.lat, z.lon], { icon: L.divIcon({ className: '', html: '<div class="wz-pin" aria-hidden="true">WZ</div>', iconSize: [24, 24], iconAnchor: [12, 12] }), title: label, alt: `${label}: ${z.road}` })
+      .bindTooltip(`${label}: ${z.road} — ${z.description}`)
+      .addTo(overlayLayer);
+  }
+  for (const n of res.notes) parts.push(`<p class="ov-muted ov-err">${esc(n.text)}</p>`);
+  box.innerHTML = parts.join('');
+  $('ov-add-delay')?.addEventListener('click', (e) => {
+    $('delay-min').value = e.currentTarget.dataset.min;
+    $('delay-where').value = e.currentTarget.dataset.where;
+    evaluate(state.ev.departureUtc);
+    announce(`Added your delay assumption of ${e.currentTarget.dataset.min} min based on current NYC DOT speeds.`);
   });
 }
 

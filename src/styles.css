@@ -434,3 +434,13 @@ body.motion-off .cond-badge *, body.motion-off .cond-badge { animation: none !im
 .prov .traffic-line { display: block; margin-top: 4px; }
 .prov .traffic-line.warn { color: #a61e4d; font-weight: 600; }
 /* ===== traffic-aware routing — end ===== */
+/* ===== keyless live overlays (NYC DOT speeds, WZDx work zones) — begin ===== */
+.traffic-experimental { margin: 0 0 8px; padding: 4px 8px; border-radius: 6px; background: #fff4e6; color: #7a3d00; font-size: 12px; font-weight: 700; }
+.overlay-notes:empty { display: none; }
+.overlay-notes { margin: 0 0 10px; display: grid; gap: 6px; }
+.ov-line { padding: 6px 8px; border-left: 3px solid #c92a2a; background: #fff5f5; border-radius: 4px; font-size: 13px; }
+.ov-line.ov-wz { border-left-color: #e67700; background: #fff9db; }
+.ov-line button { margin-left: 6px; }
+.ov-muted { margin: 0; color: #6c757d; font-size: 12px; font-style: italic; }
+.wz-pin { width: 24px; height: 24px; border-radius: 4px; background: #ffd43b; color: #3d2c00; border: 2px solid #3d2c00; font: 700 9px/20px system-ui, sans-serif; text-align: center; }
+/* ===== keyless live overlays — end ===== */

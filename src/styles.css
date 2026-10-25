@@ -416,3 +416,11 @@ body.motion-off .cond-badge *, body.motion-off .cond-badge { animation: none !im
 @media (max-width: 720px) { .chase-gps { top: 138px; } }
 
 .gps-bar, #gps-return { scroll-margin-top: 110px; scroll-margin-bottom: 40px; }
+
+/* ===== terrain check (approximate) — begin ===== */
+.rec-terrain { margin-top: 8px; padding: 6px 8px; border-left: 3px solid #adb5bd; background: #f8f9fa; border-radius: 4px; font-size: 0.9em; }
+.rec-terrain .fineprint { margin-top: 2px; }
+.rec-terrain .terrain-terrain-may-hide, .rec-terrain .terrain-partly { color: #2b8a3e; }
+.rec-terrain .terrain-open { color: #495057; }
+.rec-terrain .terrain-unknown, .rec-terrain .terrain-pending { color: #6c757d; font-style: italic; }
+/* ===== terrain check (approximate) — end ===== */

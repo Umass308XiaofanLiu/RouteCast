@@ -1,6 +1,42 @@
 # Terrain sun-occlusion — prototype assessment
 
-Status: PROTOTYPE library only (`src/lib/horizon.js`). Not wired into the UI or the glare score.
+Status (2026-10-24, branch wip-occlusion-ui, local only): the horizon library is now wired into an
+ON-DEMAND, separate "terrain check" line on each glare recommendation card. It is still NOT part of
+the glare score. The original prototype assessment follows the integration section.
+
+## Integrated terrain check (what is wired now)
+- `src/lib/demsampler.js`: `createDemSampler({ zoom = 12, fetchTile, maxTiles = 64 })` →
+  `sampleElevation(lat, lon)` (meters or `null`). Loads AWS terrarium z12 tiles
+  (`s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png`) via fetch → blob →
+  createImageBitmap → OffscreenCanvas/canvas `getImageData`; LRU cache of ≤ 64 decoded tiles with
+  in-flight de-dup; failed tiles are cached as missing (no retry storm) and never throw.
+- `src/lib/terraincheck.js`: `checkGlareWindows(model, ev, descs, { sampleElevation, maxSamplesPerWindow = 6, signal })`
+  picks ≤ 6 samples per displayed glare window (geometric glare ≥ 1, always the peak), casts one
+  `terrainHorizon` ray toward the sun azimuth at that sample's arrival time (`ev.rows[i].sun`),
+  classifies with `sunBlocked`, ≤ 4 rays at once, abortable (AbortError). Per window:
+  `terrain-may-hide` (blocked ≥ 1 and ≥ 50 % of checked) · `partly` (some blocked) · `open` (all
+  checked visible) · `unknown` (otherwise; missing data never counts as blocked).
+- UI (`src/main.js`): each glare card shows a "Check terrain (approximate)" button; one click checks
+  all displayed glare windows, shows "Checking terrain…", then one line per card:
+  "hills likely hide the low sun for part of this stretch" / "may hide … at some points" /
+  "open horizon toward the sun" / "inconclusive …" / "Terrain check unavailable (elevation tiles did
+  not load)", with the note "Bare-earth elevation (AWS Terrain Tiles, ~30 m); buildings, trees and
+  road cuts are not modeled". A new evaluation (trip, departure, vehicle, delay…) aborts and resets it.
+  Glare severity, KPIs, exposure score and optimizer are untouched (unit + e2e asserted).
+- Why on demand, not automatic: DEM tiles are a separate online dependency (in real, snapshot AND
+  synthetic modes — synthetic mode still makes no weather/route/traffic calls, but the terrain check
+  does fetch elevation tiles). Existing e2e tests assert that a planned trip makes no unknown-host
+  requests, and a user click keeps that network use explicit. Switching to automatic is a one-line
+  call to `runTerrainCheck()` after `evaluate()` once those test expectations are revisited.
+- Tests: `tests/unit/terraincheck.test.mjs` (synthetic ridge blocks westbound sunset → terrain-may-hide,
+  ridge behind → open, flat → open, null/throwing sampler → unknown, abort, ≤ 4 concurrent rays,
+  ev untouched, sampler decode/de-dup/LRU/failure). `tests/e2e/terraincheck.test.mjs`: sunset demo,
+  no DEM request before the click, "unavailable" after (test browser aborts DEM hosts), KPIs identical,
+  no page errors. A one-off local check (not committed) served a generated flat terrarium PNG for every DEM URL
+  in the sunset demo: 55 tile requests, cards showed "open horizon" twice and "inconclusive" once
+  (sun within ±0.5° of the horizon), KPIs unchanged, no page errors. Not verified: real AWS tiles in
+  the browser (no live DEM fetch in this session) and the "hills" line in the rendered UI (unit-tested only).
+
 
 ## Three different layers (do not conflate)
 - A. Terrain rendering: drawing hills in the 2D/3D views. Cosmetic; says nothing about glare.

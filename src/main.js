@@ -20,6 +20,8 @@ import { SCENARIOS, buildScenarioModel } from './lib/scenarios.js';
 import { createConditionLayer, condLegendHtml, COND_SVG, COND_RING } from './ui/condlayer.js';
 import { createChase } from './ui/chase3d.js';
 import { rowConditions } from './lib/conditions.js';
+import { createDemSampler } from './lib/demsampler.js';
+import { checkGlareWindows, terrainLine, TERRAIN_SOURCE_NOTE } from './lib/terraincheck.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -217,6 +219,7 @@ function evaluate(departureUtc, { fit = false } = {}) {
   state.glareWindows = state.ev.windows.glare.map((w) => describeGlareWindow(m, state.ev, w)).filter((d) => d.peakSeverity >= 2 || d.minutes >= 4);
   state.recs = buildAdvice(m, state.ev, { vehicle, optimizer: state.opt, unitsFmt: fmt, synthetic: m.source.kind === 'synthetic' });
   state.activeRec = null;
+  resetTerrainCheck();
   // Start the cursor at the most important glare moment, else at departure.
   const firstRec = state.recs.find((r) => r.focus != null);
   const top = state.glareWindows.slice().sort((a, b) => b.peakExpected - a.peakExpected || b.peakSeverity - a.peakSeverity)[0];
@@ -358,6 +361,7 @@ function renderAdvice() {
           <div><h3>${esc(r.title)}</h3><div class="rec-when">${esc(r.when)}</div><div class="rec-where">${esc(r.where)}</div></div></div>
         <p class="rec-why">${esc(r.why)}</p>
         <ul>${r.actions.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
+        ${r.kind === 'glare' && r.range ? terrainHtml(r.range[0]) : ''}
         ${r.applyDepartureUtc ? `<button type="button" class="ghost small apply" data-apply="${r.applyDepartureUtc}">Try this departure</button>` : ''}
       </li>`
     )
@@ -365,10 +369,11 @@ function renderAdvice() {
   list.querySelectorAll('.rec').forEach((li) => {
     const activate = () => focusRec(Number(li.dataset.i));
     li.addEventListener('click', (e) => {
-      if (e.target.closest('[data-apply]')) return;
+      if (e.target.closest('[data-apply], [data-terrain-run]')) return;
       activate();
     });
     li.addEventListener('keydown', (e) => {
+      if (e.target.closest('[data-apply], [data-terrain-run]')) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         activate();
@@ -376,6 +381,56 @@ function renderAdvice() {
     });
   });
   list.querySelectorAll('[data-apply]').forEach((b) => b.addEventListener('click', () => applyDeparture(Number(b.dataset.apply))));
+  list.querySelectorAll('[data-terrain-run]').forEach((b) => b.addEventListener('click', runTerrainCheck));
+}
+
+// ---------- terrain check (approximate, separate from the glare score) ----------
+// On demand only: it loads AWS Terrain Tiles (a separate online dependency, also in synthetic mode).
+// It never changes glare severity, KPIs, the exposure score or the optimizer.
+let demSampler = null;
+function resetTerrainCheck() {
+  state.terrainCheck?.ctrl?.abort();
+  state.terrainCheck = { status: 'idle', results: new Map(), ctrl: null };
+}
+function terrainHtml(a) {
+  const tc = state.terrainCheck || { status: 'idle', results: new Map() };
+  const note = esc(TERRAIN_SOURCE_NOTE);
+  let body;
+  if (tc.status === 'pending') body = '<span class="terrain-pending">Checking terrain…</span>';
+  else if (tc.status === 'done') {
+    const r = tc.results.get(a);
+    body = `<span class="terrain-${esc(r?.status || 'unknown')}">${esc(terrainLine(r))}</span>`;
+  } else body = '<button type="button" class="ghost small" data-terrain-run>Check terrain (approximate)</button> <span class="fineprint">loads elevation tiles</span>';
+  return `<div class="rec-terrain" data-terrain="${a}" title="${note}" aria-live="polite">${body}<div class="fineprint">${note}.</div></div>`;
+}
+function updateTerrainLines() {
+  document.querySelectorAll('#advice [data-terrain]').forEach((el) => {
+    el.outerHTML = terrainHtml(Number(el.dataset.terrain));
+  });
+  document.querySelectorAll('#advice [data-terrain-run]').forEach((b) => b.addEventListener('click', runTerrainCheck));
+}
+async function runTerrainCheck() {
+  const m = state.model;
+  const ev = state.ev;
+  if (!m || !ev || state.terrainCheck?.status === 'pending') return;
+  const descs = state.recs.filter((r) => r.kind === 'glare' && r.range).map((r) => describeGlareWindow(m, ev, r.range));
+  if (!descs.length) return;
+  resetTerrainCheck();
+  const tc = state.terrainCheck;
+  tc.status = 'pending';
+  tc.ctrl = new AbortController();
+  updateTerrainLines();
+  demSampler ??= createDemSampler({ zoom: 12 });
+  try {
+    const res = await checkGlareWindows(m, ev, descs, { sampleElevation: demSampler, signal: tc.ctrl.signal });
+    if (state.terrainCheck !== tc) return; // stale (trip or departure changed)
+    for (const r of res) tc.results.set(r.a, r);
+  } catch (e) {
+    if (e?.name === 'AbortError' || state.terrainCheck !== tc) return;
+  }
+  tc.status = 'done';
+  updateTerrainLines();
+  announce('Terrain check finished (approximate).');
 }
 
 function focusRec(i) {

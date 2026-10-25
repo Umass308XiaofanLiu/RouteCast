@@ -97,6 +97,14 @@ A third map view, **3D terrain**, drapes the planned route (colored by the proje
 - The hillshade light direction follows the represented point's sun azimuth. This is visual shading only; it is **not** used for the glare model.
 - Needs WebGL and online map + elevation tiles (also in the manual demo scenarios, whose weather stays hand-set). MapLibre is loaded on demand only when this view is opened. If WebGL is unavailable or the map cannot load, the app shows a short notice and switches to the lightweight 3D chase preview. `?view=terrain` opens this view directly.
 
+## Terrain check (approximate, on demand)
+Each sun-glare card has a "Check terrain (approximate)" button. It casts a line-of-sight ray toward the
+low sun from up to 6 points of that stretch over bare-earth elevation (AWS Terrain Tiles, ~30 m) and
+says whether hills likely hide the sun, the horizon is open, or the check is unavailable. Buildings,
+trees and road cuts are not modeled, and it never changes the glare severity, KPIs, exposure score or
+optimizer. The elevation tiles are an online dependency even in synthetic demo mode. Details:
+[docs/OCCLUSION.md](docs/OCCLUSION.md).
+
 ## Optional: follow my location
 
 Branch feature (not in the frozen contest build). Click **Use my location (optional)** to start; nothing happens before that click.

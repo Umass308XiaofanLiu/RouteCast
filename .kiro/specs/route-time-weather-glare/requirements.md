@@ -31,3 +31,16 @@
 - R6.1 Map with route colored by condition and a legend; timeline chart (daylight/night, glare, precipitation, temperature, gusts); sun-vs-heading visual for a selected point; waypoint table.
 - R6.2 Loading, error, empty and partial-data states; responsive down to 360 px; keyboard and screen-reader accessible.
 - R6.3 Data provenance badge: Live forecast vs Recorded snapshot (with capture time).
+
+## Post-hackathon (integration branch, 2026-10-24; not deployed)
+Added after the `v1.0-hackachusetts` contest build. Status: [I] implemented and tested as noted, [D] deferred.
+- PH1 [I] 3D terrain view of the planned route (real elevation, 3D buildings) with weather/light/wind effects from the represented point's projected conditions; falls back to the Canvas chase preview without WebGL. Labelled simulated playback, not GPS. Verified with SwiftShader WebGL only.
+- PH2 [I] 2D map, 3D chase and 3D terrain share one selected time, preview/return, Play and camera level, with transitions disabled under reduced motion / Animation off.
+- PH3 [I] On-demand (or opt-in automatic) approximate terrain check per glare window; "unknown" when data is missing, never "blocked". Terrain-adjusted glare is a separate figure and must not change geometric/expected glare, KPI values, advice severity, exposure score or optimizer.
+- PH4 [I] Optional GPS follow after an explicit click: snap to the planned route with hysteresis, accuracy shown, imprecise/off-route fixes do not move the position, exploring pauses following. Coordinates are never stored or transmitted. Tested with emulated geolocation only.
+- PH5 [I] Keyless overlays on click for real-data plans only: NYC DOT speeds for near-now departures with fresh data, INDOT WZDx work zones active at projected arrival. Never applied to timing automatically; feed text is escaped.
+- PH6 [I, experimental] Provider-key traffic routing (TomTom/HERE/Mapbox) hidden behind `?experimental=traffic`; key in memory unless the user opts to remember it; failures fall back to free-flow with a visible warning. Mock-tested only.
+- PH7 [D] Deployment of these features (GitHub Pages update or Cloudflare Pages, which needs a human login).
+- PH8 [D] Verification on real GPUs, phones and real GPS hardware.
+- PH9 [D] Real provider traffic responses (requires the user's own keys); traffic stays off by default.
+- PH10 [D, not planned] LLM-generated advice; the rules engine stays deterministic.

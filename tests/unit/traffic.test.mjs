@@ -11,6 +11,7 @@ import { parseMapbox, mapboxUrl, MAPBOX_MAX_AHEAD_MS } from '../../src/lib/traff
 import { cumTimeFromAnchors, cumulativeDistance, scaleCumTime } from '../../src/lib/traffic/common.js';
 import { buildTripModel } from '../../src/lib/planner.js';
 import { evaluateTrip } from '../../src/lib/trip.js';
+import { optimizeDeparture } from '../../src/lib/optimizer.js';
 
 const places = JSON.parse(readFileSync(new URL('../../src/data/us_places.json', import.meta.url)));
 const snap = JSON.parse(readFileSync(new URL('../../public/fixtures/albany-boston.json', import.meta.url)));
@@ -288,4 +289,26 @@ test('traffic timing propagates into evaluateTrip arrival times, forecast hours 
   assert.equal(b.delay.extraSec, 0, 'traffic is not reported as a manual delay');
   const c = evaluateTrip(tm, DEP, { delay: { minutes: 30, where: 'end' } });
   assert.ok(Math.abs((c.arrivalUtc - b.arrivalUtc) / 1000 - 1800) < 1, 'manual delay is added on top of traffic timing');
+});
+
+// G4-BUG-1 guard. The original failure was a Chrome 149 Maglev JIT issue and does not reproduce in
+// Node, so this checks the invariant the e2e caught: after warm, repeated optimizer runs on a
+// free-flow and then a TomTom model, the base plan's numeric fields still match its own rows.
+test('optimizer: base plan keeps its own departure/arrival/temperature after shifted candidates (G4-BUG-1)', async () => {
+  const ffF = mockFetch([[/valhalla/, () => new TypeError('offline')], [/project-osrm/, () => ({ body: osrmBody() })], forecastRoute]);
+  const ff = await buildTripModel({ origin: snap.origin, dest: snap.dest, departureUtc: DEP, places, fetchImpl: ffF, nowMs: NOW });
+  const tf = mockFetch([[/api\.tomtom\.com/, () => ({ body: tomtomBody(snap.route.coords, { delaySec: 1800 }) })], forecastRoute]);
+  const tm = await buildTripModel({ origin: snap.origin, dest: snap.dest, departureUtc: DEP, places, fetchImpl: tf, nowMs: NOW, traffic: { provider: 'tomtom', apiKey: KEY } });
+  for (let k = 0; k < 30; k++) {
+    for (const m of [ff, tm]) {
+      const o = optimizeDeparture(m, DEP, {}, { nowMs: NOW });
+      const b = o.base;
+      assert.equal(b.departureUtc, DEP);
+      assert.equal(b.arrivalUtc, b.rows[b.rows.length - 1].t);
+      assert.equal(b.elapsedSec, (b.arrivalUtc - b.departureUtc) / 1000);
+      const temps = b.rows.map((r) => r.wx?.temperature).filter((t) => t != null);
+      if (temps.length) assert.equal(b.maxTemp, Math.max(...temps));
+      assert.equal(o.current.arrivalUtc, b.arrivalUtc);
+    }
+  }
 });

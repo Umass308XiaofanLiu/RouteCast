@@ -57,6 +57,32 @@ export function placeLabel(model, sample) {
   return { road: road || null, near, text: [road, near].filter(Boolean).join(' · ') || `${sample.lat.toFixed(2)}, ${sample.lon.toFixed(2)}` };
 }
 
+// G4-BUG-1 (Chrome 149 / V8 Maglev, minified build): in about half of the runs, warm JIT code let the
+// next evaluateTrip() result (the -180 min optimizer candidate) overwrite the base plan's
+// non-Smi number fields (departureUtc, arrivalUtc, minTemp, maxTemp, maxCrossMph) while its rows,
+// totals and Smi fields stayed correct. Never reproduced with --js-flags=--no-maglev or in Node.
+// The pattern matches two objects sharing V8's mutable in-object double storage (not proven at
+// the V8 level). Priming this literal once with nulls generalizes every field to the tagged
+// representation, so each store replaces an immutable number; 10/10 e2e runs pass with it.
+function tripResult(departureUtc, arrivalUtc, driveSec, movingSec, delay, rows, totals, minTemp, maxTemp, maxCrossMph, maxCrossIdx, windows) {
+  return {
+    departureUtc,
+    arrivalUtc,
+    elapsedSec: departureUtc == null ? null : (arrivalUtc - departureUtc) / 1000,
+    driveSec,
+    movingSec,
+    delay,
+    rows,
+    totals,
+    minTemp,
+    maxTemp,
+    maxCrossMph,
+    maxCrossIdx,
+    windows,
+  };
+}
+tripResult(null, null, null, null, null, null, null, null, null, null, null, null);
+
 /**
  * Evaluate every route sample for a departure (UTC ms).
  * model = { route, samples, pointIdx, sampleToPoint, forecasts, places }
@@ -114,31 +140,18 @@ export function evaluateTrip(model, departureUtc, { breakPlan = BREAK_PLANS.none
     }
   }
   const arrivalUtc = rows[rows.length - 1].t;
-  return {
-    departureUtc,
-    arrivalUtc,
-    elapsedSec: (arrivalUtc - departureUtc) / 1000,
-    driveSec: totalDrive,
-    movingSec: totalMoving,
-    delay: dly,
-    rows,
-    totals,
-    minTemp: Number.isFinite(minTemp) ? minTemp : null,
-    maxTemp: Number.isFinite(maxTemp) ? maxTemp : null,
-    maxCrossMph,
-    maxCrossIdx,
-    windows: {
-      glare: findWindows(rows, (r) => r.glare.severity > 0, 8),
-      rear: findWindows(rows, (r) => r.glare.rear, 5),
-      wet: findWindows(rows, (r) => r.hz.wet || r.hz.snow, 5),
-      snow: findWindows(rows, (r) => r.hz.snow || r.hz.ice),
-      wind: findWindows(rows, (r) => r.hz.windy),
-      lowVis: findWindows(rows, (r) => r.hz.lowVis),
-      night: findWindows(rows, (r) => r.phase === 'night'),
-      missing: findWindows(rows, (r) => !r.wx),
-      jam: findWindows(rows, (r) => r.congested),
-    },
+  const windows = {
+    glare: findWindows(rows, (r) => r.glare.severity > 0, 8),
+    rear: findWindows(rows, (r) => r.glare.rear, 5),
+    wet: findWindows(rows, (r) => r.hz.wet || r.hz.snow, 5),
+    snow: findWindows(rows, (r) => r.hz.snow || r.hz.ice),
+    wind: findWindows(rows, (r) => r.hz.windy),
+    lowVis: findWindows(rows, (r) => r.hz.lowVis),
+    night: findWindows(rows, (r) => r.phase === 'night'),
+    missing: findWindows(rows, (r) => !r.wx),
+    jam: findWindows(rows, (r) => r.congested),
   };
+  return tripResult(departureUtc, arrivalUtc, totalDrive, totalMoving, dly, rows, totals, Number.isFinite(minTemp) ? minTemp : null, Number.isFinite(maxTemp) ? maxTemp : null, maxCrossMph, maxCrossIdx, windows);
 }
 
 /** Group consecutive rows matching `pred` into [start, end] index windows; tolerate 1-sample gaps. */
